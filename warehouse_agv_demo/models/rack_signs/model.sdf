@@ -1,0 +1,322 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="rack_zone_labels">
+    <static>true</static>
+    <link name="storage_D_sign">
+      <pose>-4.91528 8.343520 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="D_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="D_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_E_sign">
+      <pose>5.10144 -0.690987 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="E_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="E_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_F_sign">
+      <pose>5.10144 2.306970 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="F_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="F_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="F_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="F_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="F_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="F_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_G_sign">
+      <pose>5.10144 5.307080 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="G_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_front_0_lower_right"><pose>0.220 -0.055 -0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="G_back_0_lower_right"><pose>-0.220 0.055 -0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_H_sign">
+      <pose>5.10144 8.343520 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="H_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="H_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="H_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="H_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="H_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="H_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_I_sign">
+      <pose>12.88180 -21.241600 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="I_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="I_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="I_front_0_center"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="I_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="I_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="I_back_0_center"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_J_sign">
+      <pose>12.88180 -19.002800 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="J_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_front_0_lower_left"><pose>-0.220 -0.055 -0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="J_back_0_lower_left"><pose>0.220 0.055 -0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_K_sign">
+      <pose>12.88180 -16.447800 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="K_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="K_front_0_upper_diagonal"><pose>0.090 -0.055 0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="K_front_0_lower_diagonal"><pose>0.090 -0.055 -0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="K_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="K_back_0_upper_diagonal"><pose>-0.090 0.055 0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="K_back_0_lower_diagonal"><pose>-0.090 0.055 -0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_L_sign">
+      <pose>12.88180 -14.102800 2.25 0 0 0.0000</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="L_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="L_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="L_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="L_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_M_sign">
+      <pose>-9.84177 -19.559800 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="M_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_front_0_upper_in_left"><pose>-0.100 -0.055 0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_front_0_upper_in_right"><pose>0.100 -0.055 0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_back_0_upper_in_left"><pose>0.100 0.055 0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="M_back_0_upper_in_right"><pose>-0.100 0.055 0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_N_sign">
+      <pose>-9.84177 -13.559800 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="N_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="N_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="N_front_0_falling_diagonal"><pose>0.000 -0.055 0.000 0 0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="N_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="N_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="N_back_0_falling_diagonal"><pose>-0.000 0.055 0.000 0 -0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_O_sign">
+      <pose>-9.84177 -7.559800 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="O_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="O_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_P_sign">
+      <pose>5.69777 -18.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="P_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_front_0_upper_right"><pose>0.220 -0.055 0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_back_0_upper_right"><pose>-0.220 0.055 0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_Q_sign">
+      <pose>5.69777 -12.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="Q_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_front_0_lower_diagonal"><pose>0.090 -0.055 -0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Q_back_0_lower_diagonal"><pose>-0.090 0.055 -0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_R_sign">
+      <pose>5.69777 -6.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="R_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_front_0_upper_right"><pose>0.220 -0.055 0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_front_0_lower_diagonal"><pose>0.090 -0.055 -0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_back_0_upper_right"><pose>-0.220 0.055 0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="R_back_0_lower_diagonal"><pose>-0.090 0.055 -0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_S_sign">
+      <pose>0.09438 -18.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="S_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_front_0_middle"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_front_0_upper_left"><pose>-0.220 -0.055 0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_front_0_lower_right"><pose>0.220 -0.055 -0.122 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_back_0_middle"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_back_0_upper_left"><pose>0.220 0.055 0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="S_back_0_lower_right"><pose>-0.220 0.055 -0.122 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.340</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_T_sign">
+      <pose>0.09438 -12.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="T_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="T_front_0_center"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="T_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="T_back_0_center"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_U_sign">
+      <pose>0.09438 -6.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="U_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="U_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="U_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="U_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="U_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="U_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_V_sign">
+      <pose>-5.86284 -18.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="V_front_0_a_left"><pose>-0.100 -0.055 0.000 0 0.350 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="V_front_0_a_right"><pose>0.100 -0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="V_back_0_a_left"><pose>0.100 0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="V_back_0_a_right"><pose>-0.100 0.055 0.000 0 0.350 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_W_sign">
+      <pose>-5.86284 -12.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="W_front_0_left"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_front_0_right"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_front_0_lower_in_left"><pose>-0.100 -0.055 -0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_front_0_lower_in_right"><pose>0.100 -0.055 -0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_back_0_left"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_back_0_right"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_back_0_lower_in_left"><pose>0.100 0.055 -0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="W_back_0_lower_in_right"><pose>-0.100 0.055 -0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_X_sign">
+      <pose>-5.86284 -6.964700 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="X_front_0_rising_diagonal"><pose>0.000 -0.055 0.000 0 -0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="X_front_0_falling_diagonal"><pose>0.000 -0.055 0.000 0 0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="X_back_0_rising_diagonal"><pose>-0.000 0.055 0.000 0 0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="X_back_0_falling_diagonal"><pose>-0.000 0.055 0.000 0 -0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_Y_sign">
+      <pose>13.48210 9.319000 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="Y_front_0_upper_in_left"><pose>-0.100 -0.055 0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Y_front_0_upper_in_right"><pose>0.100 -0.055 0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Y_front_0_center"><pose>0.000 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Y_back_0_upper_in_left"><pose>0.100 0.055 0.125 0 -0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Y_back_0_upper_in_right"><pose>-0.100 0.055 0.125 0 0.780 0</pose><geometry><box><size>0.360 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Y_back_0_center"><pose>-0.000 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.100 0.035 0.580</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_Z_sign">
+      <pose>13.48210 15.319000 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="Z_front_0_top"><pose>0.000 -0.055 0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Z_front_0_bottom"><pose>0.000 -0.055 -0.245 0 0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Z_front_0_rising_diagonal"><pose>0.000 -0.055 0.000 0 -0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Z_back_0_top"><pose>-0.000 0.055 0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Z_back_0_bottom"><pose>-0.000 0.055 -0.245 0 -0.000 0</pose><geometry><box><size>0.460 0.035 0.090</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="Z_back_0_rising_diagonal"><pose>-0.000 0.055 0.000 0 0.720 0</pose><geometry><box><size>0.620 0.035 0.080</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+    <link name="storage_AA_sign">
+      <pose>13.48210 21.319000 2.25 0 0 1.5708</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="AA_front_0_a_left"><pose>-0.292 -0.055 0.000 0 0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_front_0_a_right"><pose>-0.148 -0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_front_0_middle"><pose>-0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.331 0.035 0.065</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_front_1_a_left"><pose>0.148 -0.055 0.000 0 0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_front_1_a_right"><pose>0.292 -0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_front_1_middle"><pose>0.220 -0.055 0.000 0 0.000 0</pose><geometry><box><size>0.331 0.035 0.065</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_0_a_left"><pose>0.292 0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_0_a_right"><pose>0.148 0.055 0.000 0 0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_0_middle"><pose>0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.331 0.035 0.065</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_1_a_left"><pose>-0.148 0.055 0.000 0 -0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_1_a_right"><pose>-0.292 0.055 0.000 0 0.350 0</pose><geometry><box><size>0.072 0.035 0.418</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="AA_back_1_middle"><pose>-0.220 0.055 0.000 0 -0.000 0</pose><geometry><box><size>0.331 0.035 0.065</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+  </model>
+</sdf>

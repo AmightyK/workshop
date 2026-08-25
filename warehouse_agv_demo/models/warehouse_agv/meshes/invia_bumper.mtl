@@ -1,0 +1,8 @@
+# Thin black perimeter bumper
+newmtl black_bumper
+Ka 0.008 0.009 0.011
+Kd 0.014 0.016 0.020
+Ks 0.240 0.240 0.260
+Ns 36.0
+d 1.0
+illum 2

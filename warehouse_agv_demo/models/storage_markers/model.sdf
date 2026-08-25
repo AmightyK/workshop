@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="storage_markers">
+    <static>true</static>
+
+    <frame name="pickup_A01"><pose>-6.25528 -1.94 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_A02"><pose>-5.03528 -1.94 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_A03"><pose>-4.31528 -1.94 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_B01"><pose>-6.25528 1.06 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_B02"><pose>-5.03528 1.06 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_B03"><pose>-4.31528 1.06 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_C01"><pose>-6.25528 4.06 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_C02"><pose>-5.03528 4.06 0 0 0 1.5708</pose></frame>
+    <frame name="pickup_C03"><pose>-4.31528 4.06 0 0 0 1.5708</pose></frame>
+    <frame name="dropoff_PACK01"><pose>10.80 -9.00 0 0 0 -1.5708</pose></frame>
+
+    <!-- Clean white rack plates. The black glyph geometry is repeated and
+         mirrored on the rear face, so codes remain readable from both aisles. -->
+    <link name="storage_A_sign">
+      <pose>-4.91528 -0.690987 2.25 0 0 0</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="A_front_left"><pose>-0.17 -0.055 0 0 0.34 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="A_front_right"><pose>0.17 -0.055 0 0 -0.34 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="A_front_bar"><pose>0 -0.055 -0.04 0 0 0</pose><geometry><box><size>0.38 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="A_back_left"><pose>-0.17 0.055 0 0 0.34 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="A_back_right"><pose>0.17 0.055 0 0 -0.34 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="A_back_bar"><pose>0 0.055 -0.04 0 0 0</pose><geometry><box><size>0.38 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+    </link>
+
+    <link name="storage_B_sign">
+      <pose>-4.91528 2.30697 2.25 0 0 0</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="B_front_stem"><pose>-0.22 -0.055 0 0 0 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_front_top"><pose>0 -0.055 0.245 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_front_mid"><pose>0 -0.055 0 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_front_bottom"><pose>0 -0.055 -0.245 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_front_upper"><pose>0.22 -0.055 0.122 0 0 0</pose><geometry><box><size>0.10 0.035 0.25</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_front_lower"><pose>0.22 -0.055 -0.122 0 0 0</pose><geometry><box><size>0.10 0.035 0.25</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_stem"><pose>0.22 0.055 0 0 0 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_top"><pose>0 0.055 0.245 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_mid"><pose>0 0.055 0 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_bottom"><pose>0 0.055 -0.245 0 0 0</pose><geometry><box><size>0.46 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_upper"><pose>-0.22 0.055 0.122 0 0 0</pose><geometry><box><size>0.10 0.035 0.25</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="B_back_lower"><pose>-0.22 0.055 -0.122 0 0 0</pose><geometry><box><size>0.10 0.035 0.25</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+    </link>
+
+    <link name="storage_C_sign">
+      <pose>-4.91528 5.30708 2.25 0 0 0</pose>
+      <visual name="board"><geometry><box><size>1.40 0.07 0.76</size></box></geometry><material><ambient>0.96 0.96 0.93 1</ambient><diffuse>0.96 0.96 0.93 1</diffuse></material></visual>
+      <visual name="C_front_top"><pose>0 -0.055 0.245 0 0 0</pose><geometry><box><size>0.48 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="C_front_left"><pose>-0.22 -0.055 0 0 0 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="C_front_bottom"><pose>0 -0.055 -0.245 0 0 0</pose><geometry><box><size>0.48 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="C_back_top"><pose>0 0.055 0.245 0 0 0</pose><geometry><box><size>0.48 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="C_back_right"><pose>0.22 0.055 0 0 0 0</pose><geometry><box><size>0.10 0.035 0.58</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="C_back_bottom"><pose>0 0.055 -0.245 0 0 0</pose><geometry><box><size>0.48 0.035 0.09</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="left_mount"><pose>-0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+      <visual name="right_mount"><pose>0.48 0 -0.62 0 0 0</pose><geometry><box><size>0.06 0.06 0.50</size></box></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+    </link>
+
+    <link name="packing_station">
+      <pose>10.8 -10.6 0.035 0 0 0</pose>
+      <visual name="base"><geometry><box><size>3.0 2.0 0.04</size></box></geometry><material><ambient>0.94 0.94 0.90 1</ambient><diffuse>0.94 0.94 0.90 1</diffuse></material></visual>
+      <visual name="north"><pose>0 0.96 0.03 0 0 0</pose><geometry><box><size>3.0 0.08 0.025</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="south"><pose>0 -0.96 0.03 0 0 0</pose><geometry><box><size>3.0 0.08 0.025</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="east"><pose>1.46 0 0.03 0 0 0</pose><geometry><box><size>0.08 2.0 0.025</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="west"><pose>-1.46 0 0.03 0 0 0</pose><geometry><box><size>0.08 2.0 0.025</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_stem"><pose>-0.18 0 0.05 0 0 0</pose><geometry><box><size>0.12 0.85 0.035</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_top"><pose>0.10 0.36 0.05 0 0 0</pose><geometry><box><size>0.55 0.12 0.035</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_mid"><pose>0.10 0 0.05 0 0 0</pose><geometry><box><size>0.55 0.12 0.035</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+      <visual name="P_right"><pose>0.36 0.18 0.05 0 0 0</pose><geometry><box><size>0.12 0.36 0.035</size></box></geometry><material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material></visual>
+    </link>
+
+  </model>
+</sdf>

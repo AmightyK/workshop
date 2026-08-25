@@ -1,0 +1,113 @@
+pipeline:
+  command_contract:
+    required_fields: [intent, color, storage, destination]
+    example:
+      intent: pick_and_deliver
+      color: blue
+      storage: storage_A
+      destination: packing_station
+
+  coarse_navigation:
+    controller: nav2
+    mode: lidar_costmap
+    obstacle_source: /scan
+    goal_tolerance_m: 0.25
+    # Plan once per goal. The collision monitor stops for a crossing worker
+    # and resumes the same path after the worker clears the forward zone.
+    use_collision_monitor: true
+
+  perception:
+    image_topic: /camera
+    camera_info_topic: /camera_info
+    detector: hsv_sim_adapter
+    production_detector: jepa_vqa_adapter
+    horizontal_fov_rad: 1.22
+    target_width_m: 0.16
+    # Calibrated from the Gazebo camera against the 160 mm task carton.
+    monocular_range_scale: 1.45
+    evidence_path: screenshots/vqa_storage_A_blue_detection.png
+
+  fine_approach:
+    controller: image_based_visual_servo
+    # Camera follows the expanded tray's rear edge. This range leaves the
+    # tray clear of the rack while placing the carton at suction reach.
+    target_range_m: 0.64
+    # Pose calibration already places the cups at contact; no blind creep.
+    final_creep_m: 0.0
+    # Camera approach retains a final emergency range gate.
+    lidar_hard_stop_m: 0.36
+    # The 16:9 horizontal camera was measured at about 0.47 m lateral offset
+    # per normalized image error near the rack. Keep the image gate inside the
+    # verified +/-35 mm two-cup contact gate with margin.
+    horizontal_tolerance: 0.06
+    angular_gain: 1.3
+    # All four fixed wheels are powered; this floor avoids slow skid-steer
+    # dithering near the final camera angle.
+    min_angular_speed: 0.20
+    linear_gain: 0.7
+    max_angular_speed: 0.65
+    max_linear_speed: 0.22
+    # If coarse visual localization leaves the requested carton outside the
+    # first frame, rotate in place until the color target enters view. This is
+    # camera recovery, not a Gazebo-pose correction.
+    search_angular_speed: 0.45
+    # Reject same-color road obstacles during the scan. The selected shelf
+    # carton must be inside this monocular acquisition range before any
+    # translational command is allowed.
+    acquisition_max_range_m: 3.2
+    # Differential-drive final docking: face the known rack first, then use
+    # the box center in the image. If square-up exposes lateral offset, back
+    # away and repeat the angled approach instead of extending from the side.
+    final_square_attempts: 3
+    correction_retreat_m: 0.25
+    post_square_range_tolerance_m: 0.10
+    # At the calibrated rack distance this is about 35 mm. The subsequent
+    # physical two-cup contact gate still rejects any unsafe lateral error.
+    post_square_horizontal_tolerance: 0.075
+    # Includes the initial in-place yaw correction before forward approach.
+    timeout_s: 50.0
+
+  lift_alignment:
+    sensor_gate: none
+    # Lift position control is independent of LiDAR and Nav2 costmaps.
+    nominal_position_m: 0.363925
+    box_center_height_m: 0.83
+    cup_center_height_m: 0.83
+    duration_s: 0.75
+
+  grasp:
+    implementation: gazebo_detachable_joint
+    production_interface: vacuum_gripper
+    extend_speed_mps: 0.36
+    max_extension_m: 0.36125
+    retracted_link_x_m: -0.225
+    position_tolerance_m: 0.008
+    motion_timeout_s: 8.0
+    attach_timeout_s: 3.0
+    # An inverted-L slider moves below the flat tray; only the compact T-head
+    # and its shallow rubber lips rise above the cargo surface.
+    expected_box_forward_m: 0.345
+    forward_tolerance_m: 0.035
+    # Cup centers are at +/-50 mm on a 160 mm face. At <=35 mm offset both
+    # 16.5 mm rubber pads still overlap the carton; a one-cup grasp is rejected.
+    lateral_tolerance_m: 0.035
+    height_tolerance_m: 0.025
+    rack_yaw_tolerance_rad: 0.035
+    # Visual servo ends close enough for suction contact, which places the
+    # base inside the rack inflation halo. After securing and lowering the
+    # carton, reverse into the clear aisle before handing control back to Nav2.
+    post_pick_retreat_m: 0.72
+    post_pick_retreat_speed_mps: 0.18
+    required_gates:
+      - target_identity_confirmed
+      - bbox_centered
+      - range_reached
+      - lift_aligned
+      - attachment_confirmed
+
+  production_assumptions:
+    - Aligned RGB-D frames are available from the RealSense camera.
+    - The vacuum head exposes pressure and contact feedback.
+    - The lift and slide expose position feedback and hard limits.
+    - Nav2 controls only coarse motion; visual servo owns final docking.
+    - A safety PLC or tuned collision monitor can override every velocity command.

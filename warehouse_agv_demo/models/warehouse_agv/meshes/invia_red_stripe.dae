@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset><unit meter="1" name="meter"/><up_axis>Z_UP</up_axis></asset>
+  <library_effects>
+    <effect id="red_accent-effect"><profile_COMMON><technique sid="common"><phong>
+      <emission><color>0 0 0 1</color></emission>
+      <ambient><color>0.5 0.01 0.015 1</color></ambient>
+      <diffuse><color>0.82 0.018 0.026 1</color></diffuse>
+      <specular><color>0.45 0.2 0.2 1</color></specular>
+      <shininess><float>64</float></shininess>
+    </phong></technique></profile_COMMON></effect>
+  </library_effects>
+  <library_materials><material id="red_accent" name="red_accent"><instance_effect url="#red_accent-effect"/></material></library_materials>
+  <library_geometries><geometry id="invia_red_stripe-mesh" name="invia_red_stripe"><mesh>
+    <source id="invia_red_stripe-positions"><float_array id="invia_red_stripe-positions-array" count="48">-0.003500 0.107800 -0.098000 0.024500 0.107800 -0.098000 0.010500 0.120400 -0.028000 0.038500 0.120400 -0.028000 0.024500 0.120400 0.049000 0.052500 0.120400 0.049000 0.038500 0.113400 0.119000 0.066500 0.113400 0.119000 -0.003500 -0.107800 -0.098000 0.024500 -0.107800 -0.098000 0.010500 -0.120400 -0.028000 0.038500 -0.120400 -0.028000 0.024500 -0.120400 0.049000 0.052500 -0.120400 0.049000 0.038500 -0.113400 0.119000 0.066500 -0.113400 0.119000</float_array><technique_common><accessor source="#invia_red_stripe-positions-array" count="16" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>
+    <source id="invia_red_stripe-normals"><float_array id="invia_red_stripe-normals-array" count="48">0.000000 0.984183 -0.177153 0.000000 0.984183 -0.177153 0.000000 0.998422 -0.056161 0.000000 0.993324 -0.115354 0.000000 0.997925 0.064382 0.000000 0.999512 0.031235 0.000000 0.995037 0.099504 0.000000 0.995037 0.099504 0.000000 -0.984183 -0.177153 0.000000 -0.984183 -0.177153 0.000000 -0.993324 -0.115354 0.000000 -0.998422 -0.056161 0.000000 -0.999512 0.031235 0.000000 -0.997925 0.064382 0.000000 -0.995037 0.099504 0.000000 -0.995037 0.099504</float_array><technique_common><accessor source="#invia_red_stripe-normals-array" count="16" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>
+    <vertices id="invia_red_stripe-vertices"><input semantic="POSITION" source="#invia_red_stripe-positions"/></vertices>
+    <triangles material="red_accent-symbol" count="12"><input semantic="VERTEX" source="#invia_red_stripe-vertices" offset="0"/><input semantic="NORMAL" source="#invia_red_stripe-normals" offset="1"/><p>0 0 2 2 3 3 0 0 3 3 1 1 2 2 4 4 5 5 2 2 5 5 3 3 4 4 6 6 7 7 4 4 7 7 5 5 9 9 11 11 10 10 9 9 10 10 8 8 11 11 13 13 12 12 11 11 12 12 10 10 13 13 15 15 14 14 13 13 14 14 12 12</p></triangles>
+  </mesh></geometry></library_geometries>
+  <library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="invia_red_stripe" name="invia_red_stripe"><instance_geometry url="#invia_red_stripe-mesh"><bind_material><technique_common><instance_material symbol="red_accent-symbol" target="#red_accent"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>
+  <scene><instance_visual_scene url="#Scene"/></scene>
+</COLLADA>

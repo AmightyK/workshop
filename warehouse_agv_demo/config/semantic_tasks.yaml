@@ -1,0 +1,38 @@
+frame_id: map
+
+stations:
+  storage_A:
+    slots:
+      A01: {anchor: pickup_A01, approach: [-6.25528, -1.94, 1.5708], vjepa_approach: [-6.25528, -1.94, 1.5708], shelf_height: 0.83}
+      A02: {anchor: pickup_A02, approach: [-5.03528, -1.94, 1.5708], vjepa_approach: [-5.03528, -1.94, 1.5708], shelf_height: 0.83}
+      A03: {anchor: pickup_A03, approach: [-4.31528, -1.94, 1.5708], vjepa_approach: [-4.31528, -1.94, 1.5708], shelf_height: 0.83}
+  storage_B:
+    slots:
+      B01: {anchor: pickup_B01, approach: [-6.25528, 1.06, 1.5708], vjepa_approach: [-6.25528, 1.06, 1.5708], shelf_height: 0.83}
+      B02: {anchor: pickup_B02, approach: [-5.03528, 1.06, 1.5708], vjepa_approach: [-5.03528, 1.06, 1.5708], shelf_height: 0.83}
+      B03: {anchor: pickup_B03, approach: [-4.31528, 1.06, 1.5708], vjepa_approach: [-4.31528, 1.06, 1.5708], shelf_height: 0.83}
+  storage_C:
+    slots:
+      C01: {anchor: pickup_C01, approach: [-6.25528, 4.06, 1.5708], vjepa_approach: [-6.25528, 4.06, 1.5708], shelf_height: 0.83}
+      C02: {anchor: pickup_C02, approach: [-5.03528, 4.06, 1.5708], vjepa_approach: [-5.03528, 4.06, 1.5708], shelf_height: 0.83}
+      C03: {anchor: pickup_C03, approach: [-4.31528, 4.06, 1.5708], vjepa_approach: [-4.31528, 4.06, 1.5708], shelf_height: 0.83}
+  packing_station:
+    slots:
+      PACK01: {anchor: dropoff_PACK01, approach: [10.80, -9.00, -1.5708]}
+
+objects:
+  blue_box: {color: blue, location: storage_A, slot: A01, model: special_blue_box, shelf_pose: [-6.25528, -0.876987, 0.83]}
+  red_box_A02: {color: red, location: storage_A, slot: A02, model: distractor_red_A02, shelf_pose: [-5.03528, -0.876987, 0.83]}
+  green_box_A03: {color: green, location: storage_A, slot: A03, model: distractor_green_A03, shelf_pose: [-4.31528, -0.876987, 0.83]}
+  blue_box_B01: {color: blue, location: storage_B, slot: B01, model: distractor_blue_B01, shelf_pose: [-6.25528, 2.12097, 0.83]}
+  red_box: {color: red, location: storage_B, slot: B02, model: special_red_box, shelf_pose: [-5.03528, 2.12097, 0.83]}
+  green_box_B03: {color: green, location: storage_B, slot: B03, model: distractor_green_B03, shelf_pose: [-4.31528, 2.12097, 0.83]}
+  blue_box_C01: {color: blue, location: storage_C, slot: C01, model: distractor_blue_C01, shelf_pose: [-6.25528, 5.12108, 0.83]}
+  red_box_C02: {color: red, location: storage_C, slot: C02, model: distractor_red_C02, shelf_pose: [-5.03528, 5.12108, 0.83]}
+  green_box_C03: {color: green, location: storage_C, slot: C03, model: special_green_box, shelf_pose: [-4.31528, 5.12108, 0.83]}
+
+example_task:
+  utterance: "Bring the blue box from Storage A to Packing Station"
+  object: blue_box
+  pickup_anchor: pickup_A01
+  dropoff_anchor: dropoff_PACK01

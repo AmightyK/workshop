@@ -1,0 +1,30 @@
+frame_id: map
+
+# Fixed coarse routes from the charging dock to a staging pose beside each
+# task cabinet. Nav2 keeps that path while LiDAR stops for crossing workers,
+# then resumes after they clear. The final slot is selected after staging.
+routes:
+  storage_A:
+    label: "tủ A"
+    waypoints:
+      - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
+      - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
+      - {name: central_south, pose: [-1.45, -10.0, 1.5708]}
+      - {name: cabinet_A_staging, pose: [-1.90, -2.3, 1.5708]}
+  storage_B:
+    label: "tủ B"
+    waypoints:
+      - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
+      - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
+      - {name: central_south, pose: [-1.45, -10.0, 1.5708]}
+      - {name: cabinet_A_B_bypass, pose: [-1.90, -0.2, 1.5708]}
+      - {name: cabinet_B_staging, pose: [-1.90, 0.8, 1.5708]}
+  storage_C:
+    label: "tủ C"
+    waypoints:
+      - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
+      - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
+      - {name: central_south, pose: [-1.45, -10.0, 1.5708]}
+      - {name: cabinet_A_B_bypass, pose: [-1.90, -0.2, 1.5708]}
+      - {name: cabinet_B_C_bypass, pose: [-2.5, 3.5, 1.5708]}
+      - {name: cabinet_C_staging, pose: [-2.5, 3.8, 3.14159]}

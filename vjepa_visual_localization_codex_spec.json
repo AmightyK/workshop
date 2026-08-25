@@ -1,0 +1,562 @@
+{
+  "project": {
+    "name": "vjepa_visual_localization",
+    "goal": "Build a camera-only visual localization system using V-JEPA latent representations. During mapping, ground-truth pose is available and stored with visual embeddings. During online localization, GPS/ground-truth pose is unavailable; the system estimates current pose by retrieving and matching V-JEPA embeddings against the prebuilt visual map.",
+    "long_term_goal": "Use the same architecture as a foundation for autonomous-driving visual localization without OCR or manually assigned semantic landmark IDs.",
+    "core_constraints": [
+      "Do not use OCR.",
+      "Do not require semantic labels for signs, shelves, buildings, road signs, or landmarks.",
+      "Warehouse aisles can look highly repetitive.",
+      "Small visual details such as location signs may be the most discriminative visual landmarks.",
+      "People, forklifts, boxes, vehicles, and other dynamic objects may appear during mapping or localization.",
+      "The first implementation must prioritize a working baseline before advanced research features.",
+      "Use V-JEPA visual/video representations as the primary learned representation.",
+      "Ground-truth pose is available only during mapping and evaluation."
+    ]
+  },
+  "research_hypothesis": {
+    "main": "Global V-JEPA embeddings can provide coarse place retrieval, while local V-JEPA patch/tubelet tokens can preserve discriminative local landmarks that distinguish visually repetitive warehouse aisles.",
+    "dynamic_object_hypothesis": "Persistent static visual landmarks will produce repeated correspondences across traversals, while people and other dynamic objects will be inconsistent and can be down-weighted without explicit segmentation.",
+    "target_pipeline": "global retrieval -> local token matching -> geometric verification -> temporal consistency -> motion prior -> pose estimation"
+  },
+  "implementation_principles": [
+    "Implement incrementally.",
+    "Keep every stage independently testable.",
+    "Save intermediate embeddings and retrieval scores for analysis.",
+    "Avoid hard-coding four frames per two seconds; expose clip duration and number of sampled frames as configuration parameters.",
+    "Normalize embeddings before cosine similarity.",
+    "Use coarse-to-fine retrieval so local token matching is only performed on a small candidate set.",
+    "Keep mapping and online-localization code paths separate.",
+    "Do not add OCR as a fallback."
+  ],
+  "repository_structure": {
+    "root": [
+      "configs/",
+      "data/",
+      "scripts/",
+      "src/",
+      "tests/",
+      "outputs/",
+      "README.md",
+      "requirements.txt"
+    ],
+    "src": {
+      "data": [
+        "dataset.py",
+        "clip_sampler.py",
+        "pose_io.py"
+      ],
+      "models": [
+        "vjepa_encoder.py",
+        "pooling.py"
+      ],
+      "mapping": [
+        "map_builder.py",
+        "map_database.py"
+      ],
+      "retrieval": [
+        "global_retriever.py",
+        "local_matcher.py",
+        "geometric_verifier.py"
+      ],
+      "localization": [
+        "pose_estimator.py",
+        "temporal_localizer.py",
+        "motion_filter.py"
+      ],
+      "evaluation": [
+        "metrics.py",
+        "evaluator.py"
+      ],
+      "utils": [
+        "config.py",
+        "logging.py",
+        "geometry.py"
+      ]
+    },
+    "scripts": [
+      "extract_map_embeddings.py",
+      "build_visual_map.py",
+      "run_global_baseline.py",
+      "run_local_matching.py",
+      "run_sequence_localization.py",
+      "evaluate_localization.py",
+      "vjepa_image_relay.py"
+    ]
+  },
+  "data_format": {
+    "mapping_run": {
+      "example": "data/run_001/",
+      "files": {
+        "video": "video.mp4",
+        "poses": "poses.csv"
+      }
+    },
+    "poses_csv_columns": [
+      "timestamp",
+      "x",
+      "y",
+      "z",
+      "yaw"
+    ],
+    "pose_definition": {
+      "x": "ground-truth world x coordinate",
+      "y": "ground-truth world y coordinate",
+      "z": "ground-truth world z coordinate",
+      "yaw": "camera or robot heading in radians"
+    },
+    "synchronization": "Each sampled video clip must be assigned the ground-truth pose corresponding to the clip center timestamp."
+  },
+  "configuration": {
+    "video": {
+      "clip_duration_sec": 1.0,
+      "num_sampled_frames": 4,
+      "sample_rate_fps": 4.0,
+      "sampling": "uniform",
+      "stride_sec": 0.5,
+      "resize": "use the preprocessing required by the selected V-JEPA checkpoint"
+    },
+    "dds_image_transport": {
+      "input_topic_on_gazebo_pc": "/camera",
+      "orin_topic": "/vjepa/camera/image_raw",
+      "message_type": "sensor_msgs/msg/Image",
+      "publish_rate_fps": 4.0,
+      "worker_policy": "latest frame only",
+      "qos": "BEST_EFFORT + VOLATILE + KEEP_LAST(1)",
+      "rmw": "rmw_fastrtps_cpp",
+      "network": "direct Ethernet LAN; both hosts use the same ROS_DOMAIN_ID"
+    },
+    "dds_orin_results": {
+      "pose_topic": "/vjepa_pose",
+      "pose_type": "geometry_msgs/msg/PoseWithCovarianceStamped",
+      "pose_semantics": "GPS-like x/y/yaw in the warehouse map frame; not latitude/longitude",
+      "latent_topic": "/vjepa_latent",
+      "latent_type": "std_msgs/msg/Float32MultiArray with the current normalized 1024-D query embedding",
+      "debug_topic": "/vjepa_localization/debug",
+      "debug_type": "std_msgs/msg/String JSON containing clip timestamp, compute host, inference latency, selected source, top-k candidates/scores, similarity and temporal state",
+      "qos": "RELIABLE + VOLATILE + KEEP_LAST(1)",
+      "evaluation_boundary": "Gazebo truth remains on the laptop dashboard and is never an Orin localization input"
+    },
+    "model": {
+      "checkpoint": "configure externally",
+      "device": "cuda",
+      "dtype": "float16",
+      "return_local_tokens": true,
+      "normalize_embeddings": true
+    },
+    "retrieval": {
+      "global_top_k": 20,
+      "local_top_tokens": 100,
+      "final_top_k": 5,
+      "similarity": "cosine"
+    },
+    "temporal": {
+      "enabled": false,
+      "sequence_length": 4
+    },
+    "motion_prior": {
+      "enabled": false
+    }
+  },
+  "core_data_structures": {
+    "Pose": {
+      "timestamp": "float",
+      "x": "float",
+      "y": "float",
+      "z": "float",
+      "yaw": "float"
+    },
+    "MapEntry": {
+      "id": "int",
+      "timestamp": "float",
+      "global_embedding": "float16[D]",
+      "local_tokens": "optional float16[N,D]",
+      "pose": "Pose"
+    },
+    "VisualMap": {
+      "global_embeddings": "array[num_entries,D]",
+      "poses": "array[num_entries,4]",
+      "timestamps": "array[num_entries]",
+      "local_token_storage": "separate or lazy-loaded storage indexed by map entry id"
+    }
+  },
+  "stage_0_dataset_pipeline": {
+    "goal": "Create synchronized video clips and poses.",
+    "tasks": [
+      "Load video and pose CSV.",
+      "For every clip center timestamp, sample a fixed-duration video clip.",
+      "Uniformly sample num_sampled_frames from the clip.",
+      "Interpolate or select the nearest ground-truth pose at the clip center time.",
+      "Return clip tensor, pose, timestamp, and unique id.",
+      "Write unit tests for timestamp synchronization."
+    ],
+    "acceptance_criteria": [
+      "Dataset iteration returns deterministic clip/pose pairs.",
+      "Clip timestamps and pose timestamps differ by less than a configurable tolerance.",
+      "Visual inspection utility can save sample clips with associated pose metadata."
+    ]
+  },
+  "stage_1_vjepa_encoder": {
+    "goal": "Wrap V-JEPA behind a clean interface.",
+    "required_api": {
+      "encode_video": {
+        "input": "video tensor",
+        "output": {
+          "global_embedding": "[B,D]",
+          "local_tokens": "[B,N,D] if available"
+        }
+      }
+    },
+    "global_embedding": {
+      "baseline": "mean-pool local output tokens over token dimension",
+      "postprocess": "L2 normalize"
+    },
+    "local_tokens": {
+      "postprocess": "L2 normalize each token along feature dimension",
+      "note": "Keep spatial/temporal token ordering metadata if the V-JEPA implementation exposes it."
+    },
+    "tests": [
+      "Output shapes are stable.",
+      "Embeddings contain no NaN or Inf.",
+      "L2 normalized global vectors have norm approximately one.",
+      "Identical clips produce nearly identical embeddings in eval mode."
+    ]
+  },
+  "stage_2_global_mapping": {
+    "goal": "Build the first visual map using only global embeddings.",
+    "algorithm": [
+      "Iterate over mapping dataset.",
+      "Encode each clip with V-JEPA.",
+      "Store normalized global embedding.",
+      "Store synchronized ground-truth pose.",
+      "Store timestamp and map entry id."
+    ],
+    "initial_storage": {
+      "global_embeddings": "outputs/map/global_embeddings.npy",
+      "poses": "outputs/map/poses.npy",
+      "timestamps": "outputs/map/timestamps.npy",
+      "metadata": "outputs/map/metadata.json"
+    },
+    "note": "Do not introduce FAISS until brute-force cosine retrieval is verified."
+  },
+  "stage_3_global_baseline_localization": {
+    "goal": "Establish the simplest working localization baseline.",
+    "query_algorithm": [
+      "Sample query clip.",
+      "Encode query clip.",
+      "L2 normalize query global embedding.",
+      "Compute cosine similarity against all map global embeddings.",
+      "Retrieve top K candidates.",
+      "Use top-1 candidate pose as the initial prediction."
+    ],
+    "cosine_formula": "score(q,i) = dot(normalize(q), normalize(z_i))",
+    "optional_weighted_pose": {
+      "enabled_after_top1_baseline": true,
+      "formula": "w_i = exp(alpha * score_i); pose = sum(w_i * pose_i) / sum(w_i)",
+      "warning": "Only interpolate nearby candidates. Do not average poses from spatially disconnected map locations."
+    },
+    "outputs_to_log": [
+      "query id",
+      "ground-truth pose",
+      "predicted pose",
+      "top-k candidate ids",
+      "top-k similarities",
+      "candidate poses",
+      "position error"
+    ]
+  },
+  "stage_4_metrics": {
+    "position_error": "sqrt((x_gt-x_pred)^2 + (y_gt-y_pred)^2)",
+    "yaw_error": "smallest wrapped angular difference between yaw_gt and yaw_pred",
+    "required_metrics": [
+      "mean position error",
+      "median position error",
+      "95th percentile position error",
+      "Recall@0.5m",
+      "Recall@1m",
+      "Recall@2m",
+      "Recall@5m"
+    ],
+    "retrieval_metrics": [
+      "Recall@1 candidate within localization radius",
+      "Recall@5 candidates within localization radius",
+      "Recall@20 candidates within localization radius"
+    ],
+    "important": "Evaluate query runs from different traversals than mapping runs whenever possible."
+  },
+  "stage_5_local_token_map": {
+    "goal": "Add local V-JEPA token storage for fine matching.",
+    "reason": "Global embeddings may be dominated by generic warehouse geometry and fail to preserve small distinctive signs or local landmarks.",
+    "storage_strategy": [
+      "Keep global embeddings fully memory-resident.",
+      "Store local tokens separately by map entry id.",
+      "Load local tokens only for globally retrieved top-K candidates.",
+      "Prefer float16 storage.",
+      "Optionally compress or select tokens later if storage becomes excessive."
+    ]
+  },
+  "stage_6_local_token_matching": {
+    "goal": "Re-rank global retrieval candidates using local token correspondences.",
+    "inputs": {
+      "query_tokens": "[Nq,D]",
+      "candidate_tokens": "[Nm,D]"
+    },
+    "similarity_matrix": "S = Q @ M.T after L2 normalization",
+    "basic_matching": [
+      "For each query token q_i, find max cosine similarity over candidate tokens.",
+      "Collect best score and best candidate-token index.",
+      "Do not average all query tokens.",
+      "Select top K strongest token correspondences.",
+      "Average only the selected top-K scores."
+    ],
+    "formula": "local_score = mean(topK_i(max_j cosine(q_i,m_j)))",
+    "combined_score": "score = alpha * global_score + beta * local_score",
+    "initial_weights": {
+      "alpha": 0.3,
+      "beta": 0.7
+    },
+    "notes": [
+      "Weights are hyperparameters, not fixed research claims.",
+      "Log local correspondences for visualization.",
+      "The hypothesis is that small distinctive location signs become high-confidence local matches without OCR."
+    ]
+  },
+  "stage_7_spatial_and_geometric_verification": {
+    "goal": "Reject visually similar but geometrically inconsistent candidates.",
+    "prerequisite": "Preserve the spatial position of local V-JEPA tokens or map tokens back to image/video coordinates.",
+    "pipeline": [
+      "Generate query-to-map token correspondences.",
+      "Keep high-confidence mutual or near-mutual matches.",
+      "Convert token ids to approximate image coordinates.",
+      "Estimate a geometric model using RANSAC.",
+      "Possible models: homography for approximately planar/local scenes, fundamental matrix for general two-view geometry.",
+      "Score candidate using number of geometric inliers and reprojection/epipolar error.",
+      "Re-rank candidate list using appearance score plus geometric score."
+    ],
+    "important": "Do not require semantic knowledge of what a matched patch represents."
+  },
+  "stage_8_temporal_sequence_localization": {
+    "goal": "Use multiple consecutive query clips so a temporary occlusion or dynamic object cannot dominate localization.",
+    "concept": "Match a sequence of query embeddings against a spatially/temporally consistent sequence in the stored map.",
+    "baseline_formula": "sequence_score(j) = sum_t cosine(q_t, map_{j+t})",
+    "better_version": [
+      "Allow variable robot velocity.",
+      "Search a local temporal/spatial window around candidate map indices.",
+      "Use dynamic programming or beam search for the highest-scoring consistent map trajectory.",
+      "Penalize impossible jumps between map locations."
+    ],
+    "example": {
+      "query": [
+        "q0",
+        "q1",
+        "q2",
+        "q3"
+      ],
+      "behavior": "If q2 is occluded by a pedestrian, q0, q1, and q3 can still preserve the correct sequence hypothesis."
+    }
+  },
+  "stage_9_motion_prior": {
+    "goal": "Resolve perceptual aliasing using robot motion.",
+    "inputs": [
+      "visual localization candidate distribution",
+      "wheel odometry and/or IMU if available"
+    ],
+    "implementation_options": [
+      "simple maximum-distance gate",
+      "Bayesian filter",
+      "particle filter"
+    ],
+    "first_version": {
+      "method": "distance gate",
+      "logic": "Reject candidates that require physically impossible displacement from the previous estimated pose."
+    },
+    "example": "If previous pose is near (11,4), a visually similar candidate at (45,18) should be rejected unless the motion model permits such displacement."
+  },
+  "stage_10_dynamic_object_robustness": {
+    "goal": "Reduce influence of people, forklifts, vehicles, and temporarily moved objects without OCR and preferably without explicit segmentation.",
+    "phase_1": "Rely on local matching plus temporal consistency; dynamic patches should have fewer stable correspondences.",
+    "phase_2_persistent_landmarks": {
+      "requires": "multiple mapping traversals",
+      "method": [
+        "Associate map observations from approximately the same spatial region across traversals.",
+        "Match local tokens across traversals.",
+        "Estimate how often each local visual pattern reappears.",
+        "Assign each pattern a persistence score."
+      ],
+      "formula": "persistence_i = number_of_traversals_where_feature_i_matches / number_of_traversals_observing_region",
+      "use": "weighted_local_score = sum_i persistence_i * match_similarity_i",
+      "expected_behavior": {
+        "fixed_sign": "high persistence",
+        "shelf_structure": "high persistence",
+        "person": "low persistence",
+        "forklift": "low or medium persistence depending on parking behavior",
+        "temporary_box": "low persistence"
+      }
+    }
+  },
+  "stage_11_pose_estimation": {
+    "mvp": "Return pose of best map entry.",
+    "improved": [
+      "Use only spatially nearby top candidates.",
+      "Weight poses by final candidate scores.",
+      "Handle yaw using circular averaging rather than linear averaging."
+    ],
+    "advanced": [
+      "If local correspondences and camera calibration permit, estimate relative camera pose.",
+      "Combine relative pose with known mapped landmark/camera poses.",
+      "Fuse visual measurement with motion filter."
+    ]
+  },
+  "experimental_matrix": {
+    "required_experiments": [
+      "Global V-JEPA embedding only.",
+      "Global embedding + top-K weighted pose.",
+      "Global retrieval + local V-JEPA token matching.",
+      "Global + local + geometric verification.",
+      "Global + local + temporal consistency.",
+      "Global + local + temporal + motion prior.",
+      "Persistent-landmark weighting with multiple mapping traversals."
+    ],
+    "environment_splits": [
+      "mostly empty warehouse",
+      "pedestrians present",
+      "forklift/vehicle movement",
+      "objects moved between mapping and query",
+      "different lighting/time if available"
+    ],
+    "research_question": "How much does each component improve robustness under perceptual aliasing and dynamic-scene changes?"
+  },
+  "development_order": [
+    {
+      "step": 1,
+      "name": "Dataset loader",
+      "deliverable": "Synchronized clips and poses."
+    },
+    {
+      "step": 2,
+      "name": "V-JEPA wrapper",
+      "deliverable": "Global embedding and optional local tokens."
+    },
+    {
+      "step": 3,
+      "name": "Map extraction",
+      "deliverable": "Saved global map embeddings and poses."
+    },
+    {
+      "step": 4,
+      "name": "Global cosine baseline",
+      "deliverable": "Top-k retrieval and top-1 pose prediction."
+    },
+    {
+      "step": 5,
+      "name": "Evaluator",
+      "deliverable": "Position errors and recall metrics."
+    },
+    {
+      "step": 6,
+      "name": "Local token storage",
+      "deliverable": "Lazy local-token map."
+    },
+    {
+      "step": 7,
+      "name": "Local token re-ranking",
+      "deliverable": "Coarse-to-fine retrieval."
+    },
+    {
+      "step": 8,
+      "name": "Match visualization",
+      "deliverable": "Debug images showing token correspondences."
+    },
+    {
+      "step": 9,
+      "name": "Geometric verification",
+      "deliverable": "RANSAC-based candidate verification."
+    },
+    {
+      "step": 10,
+      "name": "Temporal localizer",
+      "deliverable": "Sequence-consistent localization."
+    },
+    {
+      "step": 11,
+      "name": "Motion prior",
+      "deliverable": "Physically consistent trajectory estimation."
+    },
+    {
+      "step": 12,
+      "name": "Persistent landmark research",
+      "deliverable": "Multi-traversal static-feature weighting."
+    }
+  ],
+  "mvp_definition": {
+    "must_have": [
+      "Load mapping and query runs.",
+      "Extract V-JEPA global embeddings.",
+      "Build global visual map.",
+      "Run cosine top-K retrieval.",
+      "Estimate top-1 pose.",
+      "Evaluate localization error.",
+      "Produce retrieval debug logs."
+    ],
+    "must_not_have_yet": [
+      "OCR",
+      "semantic detection",
+      "complex SLAM backend",
+      "persistent landmark learning",
+      "premature FAISS optimization"
+    ]
+  },
+  "codex_instructions": {
+    "role": "Act as the implementation engineer for this repository.",
+    "workflow": [
+      "Read this entire specification before modifying code.",
+      "Inspect the existing repository before creating files.",
+      "Implement stages in development_order unless the repository already contains equivalent functionality.",
+      "Do not silently change the core architecture.",
+      "Prefer small composable Python modules.",
+      "Add type hints and docstrings.",
+      "Add tests for each core module.",
+      "Keep model/checkpoint details configurable.",
+      "Do not add OCR or text recognition.",
+      "Do not assume signs contain readable text; treat them only as visual patterns.",
+      "Do not hard-code warehouse-specific semantic IDs.",
+      "When unsure about V-JEPA output tensor structure, inspect the installed/official model implementation and adapt the wrapper while preserving the public encode_video API.",
+      "After each implementation stage, run relevant tests and provide a concise summary of changed files and known limitations."
+    ],
+    "first_task": {
+      "objective": "Implement only Stage 0 through Stage 4 first.",
+      "expected_files": [
+        "src/data/dataset.py",
+        "src/data/clip_sampler.py",
+        "src/data/pose_io.py",
+        "src/models/vjepa_encoder.py",
+        "src/models/pooling.py",
+        "src/mapping/map_database.py",
+        "src/mapping/map_builder.py",
+        "src/retrieval/global_retriever.py",
+        "src/localization/pose_estimator.py",
+        "src/evaluation/metrics.py",
+        "src/evaluation/evaluator.py",
+        "scripts/build_visual_map.py",
+        "scripts/run_global_baseline.py",
+        "scripts/evaluate_localization.py"
+      ],
+      "stop_condition": "Stop after the global baseline is functional and evaluated. Do not implement local token matching until baseline metrics and retrieval outputs can be inspected."
+    }
+  },
+  "success_criteria": {
+    "engineering": [
+      "End-to-end command can build a visual map from a mapping run.",
+      "End-to-end command can localize clips from a separate query run.",
+      "Evaluation script reports localization metrics.",
+      "All parameters are configurable.",
+      "No OCR dependency exists."
+    ],
+    "research": [
+      "Can compare global-only localization to local-token-based localization.",
+      "Can evaluate robustness when pedestrians and moving objects are present.",
+      "Can quantify perceptual aliasing failures in repetitive warehouse aisles.",
+      "Architecture can later be tested on road-driving video without changing its dependence on semantic labels."
+    ]
+  }
+}

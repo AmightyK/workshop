@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <!-- Compatibility wrapper kept so old world names continue to resolve. -->
+  <model name="shelf_big_standard">
+    <static>true</static>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf_big</uri>
+    </include>
+  </model>
+</sdf>

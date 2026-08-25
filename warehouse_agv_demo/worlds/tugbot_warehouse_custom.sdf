@@ -1,0 +1,492 @@
+<?xml version='1.0' encoding='ASCII'?>
+<sdf version='1.7'>
+  <world name='world_demo'>
+    <gravity>0 0 -9.8</gravity>
+    <physics type='ode'>
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <max_contacts>10</max_contacts>
+    </physics>
+    <plugin name='ignition::gazebo::systems::Physics' filename='libignition-gazebo-physics-system.so'/>
+    <plugin name='ignition::gazebo::systems::UserCommands' filename='libignition-gazebo-user-commands-system.so'/>
+    <plugin name='ignition::gazebo::systems::SceneBroadcaster' filename='libignition-gazebo-scene-broadcaster-system.so'/>
+    <plugin name='ignition::gazebo::systems::Imu' filename='ignition-gazebo-imu-system'/>
+    <plugin name='ignition::gazebo::systems::Sensors' filename='ignition-gazebo-sensors-system'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <gui fullscreen="0">
+
+      <!-- 3D scene -->
+      <plugin filename="GzScene3D" name="3D View">
+        <ignition-gui>
+          <title>3D View</title>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="string" key="state">docked</property>
+        </ignition-gui>
+
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <background_color>0.8 0.8 0.8</background_color>
+        <!-- Side-on startup view centered on the inVia-style AMR. -->
+        <camera_pose>13.9 -9.1 0.60 0 0.3514 -1.5708</camera_pose>
+      </plugin>
+
+      <!-- World control -->
+      <plugin filename="WorldControl" name="World control">
+        <ignition-gui>
+          <title>World control</title>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="bool" key="resizable">false</property>
+          <property type="double" key="height">72</property>
+          <property type="double" key="width">121</property>
+          <property type="double" key="z">1</property>
+
+          <property type="string" key="state">floating</property>
+          <anchors target="3D View">
+            <line own="left" target="left"/>
+            <line own="bottom" target="bottom"/>
+          </anchors>
+        </ignition-gui>
+
+        <play_pause>true</play_pause>
+        <step>true</step>
+        <start_paused>true</start_paused>
+
+      </plugin>
+
+      <!-- World statistics -->
+      <plugin filename="WorldStats" name="World stats">
+        <ignition-gui>
+          <title>World stats</title>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="bool" key="resizable">false</property>
+          <property type="double" key="height">110</property>
+          <property type="double" key="width">290</property>
+          <property type="double" key="z">1</property>
+
+          <property type="string" key="state">floating</property>
+          <anchors target="3D View">
+            <line own="right" target="right"/>
+            <line own="bottom" target="bottom"/>
+          </anchors>
+        </ignition-gui>
+
+        <sim_time>true</sim_time>
+        <real_time>true</real_time>
+        <real_time_factor>true</real_time_factor>
+        <iterations>true</iterations>
+      </plugin>
+
+      <plugin filename="TransformControl" name="Transform control">
+          <ignition-gui>
+              <property type="bool" key="showTitleBar">false</property>
+              <property key="x" type="double">0</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">250</property>
+              <property key="height" type="double">50</property>
+              <property key="state" type="string">floating</property>
+              <property key="cardBackground" type="string">#666666</property>
+          </ignition-gui>
+      </plugin>
+      <plugin filename="Shapes" name="Shapes">
+          <ignition-gui>
+              <property type="bool" key="showTitleBar">false</property>
+              <property key="x" type="double">250</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">150</property>
+              <property key="height" type="double">50</property>
+              <property key="state" type="string">floating</property>
+              <property key="cardBackground" type="string">#666666</property>
+          </ignition-gui>
+      </plugin>
+      <plugin filename="Screenshot" name="Screenshot">
+          <ignition-gui>
+              <property type="bool" key="showTitleBar">false</property>
+              <property key="x" type="double">400</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">50</property>
+              <property key="height" type="double">50</property>
+              <property key="state" type="string">floating</property>
+              <property key="cardBackground" type="string">#666666</property>
+          </ignition-gui>
+      </plugin>
+      <plugin filename="ImageDisplay" name="AGV Camera View">
+          <gz-gui>
+              <title>AGV Camera View</title>
+              <property key="x" type="double">20</property>
+              <property key="y" type="double">700</property>
+              <property key="width" type="double">340</property>
+              <property key="height" type="double">250</property>
+              <property key="z" type="double">2</property>
+              <property key="state" type="string">floating</property>
+          </gz-gui>
+          <topic>/warehouse_agv/camera</topic>
+          <topic_picker>false</topic_picker>
+      </plugin>
+      <plugin filename="ComponentInspector" name="Component inspector">
+          <ignition-gui>
+              <property key="x" type="double">0</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">400</property>
+              <property key="height" type="double">375</property>
+              <property key="state" type="string">docked_collapsed</property>
+          </ignition-gui>
+      </plugin>
+      <plugin filename="EntityTree" name="Entity tree">
+          <ignition-gui>
+              <property key="x" type="double">0</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">400</property>
+              <property key="height" type="double">375</property>
+              <property key="state" type="string">docked_collapsed</property>
+          </ignition-gui>
+      </plugin>
+      <plugin filename="Teleop" name="Teleop">
+          <ignition-gui>
+              <property key="x" type="double">0</property>
+              <property key="y" type="double">0</property>
+              <property key="width" type="double">400</property>
+              <property key="height" type="double">900</property>
+              <property key="state" type="string">docked</property>
+          </ignition-gui>
+          <topic>/model/warehouse_agv/cmd_vel</topic>
+      </plugin>
+    </gui>
+
+    <scene>
+      <ambient>1 1 1 1</ambient>
+      <!-- Neutral background prevents unloaded/far warehouse openings from
+           appearing as solid cyan patches in the robot camera. -->
+      <background>0.16 0.18 0.21 1</background>
+      <shadows>0</shadows>
+      <grid>false</grid>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>0</cast_shadows>
+      <pose>-5 -3 10 0 0 0</pose>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>1 1 1 1</specular>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <model name='ground_plane'>
+      <static>true</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <plane>
+              <normal>0.0 0.0 1</normal>
+              <size>1 1</size>
+            </plane>
+          </geometry>
+        </collision>
+      </link>
+      <pose>0 0 0 0 0 0</pose>
+    </model>
+
+    <!-- Base -->
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/OpenRobotics/models/Warehouse
+      </uri>
+      <name>warehouse</name>
+      <pose>0 0 -0.09 0 0 0</pose>
+    </include>
+
+    <!-- Modern camera-equipped warehouse AMR replacing the original Tugbot. -->
+    <include>
+      <uri>model://warehouse_agv</uri>
+      <name>warehouse_agv</name>
+      <!-- Face into the warehouse so the live camera starts with a useful view. -->
+      <pose>13.9 -10.6 0 0 0 3.14159</pose>
+    </include>
+
+    <model name="charging_pad">
+      <pose>14.72 -10.6 0.015 0 0 0</pose>
+      <static>true</static>
+      <link name="pad">
+        <visual name="base"><geometry><box><size>0.55 0.78 0.03</size></box></geometry><material><ambient>0.04 0.07 0.08 1</ambient><diffuse>0.05 0.10 0.11 1</diffuse></material></visual>
+        <visual name="charge_strip"><pose>0 0 0.018 0 0 0</pose><geometry><box><size>0.40 0.56 0.01</size></box></geometry><material><ambient>0.02 0.8 0.75 1</ambient><diffuse>0.02 0.8 0.75 1</diffuse><emissive>0.01 0.3 0.28 1</emissive></material></visual>
+      </link>
+    </model>
+
+    <!-- Carts -->
+
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/cart_model_2
+      </uri>
+      <name>cart1</name>
+      <pose>-5.73 15 0.25 0 -0 0</pose>
+    </include>
+
+    <!-- Objects: 27 compact racks. The oversized shelf_big rows were removed;
+         every storage rack now uses the same small A-C shelf footprint. -->
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf</name>
+      <pose>-4.41528 -0.690987 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_0</name>
+      <pose>-4.41528 2.30697 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_1</name>
+      <pose>-4.41528 5.30708 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_2</name>
+      <pose>-4.41528 8.34352 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_3</name>
+      <pose>5.60144 8.34352 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_4</name>
+      <pose>5.60144 5.30708 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_5</name>
+      <pose>5.60144 -0.690987 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_6</name>
+      <pose>5.60144 2.30697 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/pallet_box_mobile
+      </uri>
+      <name>pallet_box_mobile</name>
+      <pose>4.4161 14.6952 0.01 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/pallet_box_mobile
+      </uri>
+      <name>pallet_box_mobile_0</name>
+      <pose>4.45415 13.6212 0.01 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/pallet_box_mobile
+      </uri>
+      <name>pallet_box_mobile_1</name>
+      <pose>4.4468 12.229 0.01 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/pallet_box_mobile
+      </uri>
+      <name>pallet_box</name>
+      <pose>-6.11913 13.7079 0.01 0 -0 0</pose>
+      <static>true</static>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_7</name>
+      <pose>13.3818 -21.2416 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_8</name>
+      <pose>13.3818 -19.0028 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_9</name>
+      <pose>13.3818 -16.4478 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/shelf
+      </uri>
+      <name>shelf_10</name>
+      <pose>13.3818 -14.1028 0 0 -0 0</pose>
+    </include>
+
+    <!-- Compact replacements at the five former shelf_big footprints. Three
+         separated, rotated racks replace each 18 m monolithic row, leaving
+         cross-aisles wide enough for the AGV to route between them. -->
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_11</name><pose>-9.84177 -19.0598 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_12</name><pose>-9.84177 -13.0598 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_13</name><pose>-9.84177 -7.0598 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_14</name><pose>5.69777 -18.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_15</name><pose>5.69777 -12.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_16</name><pose>5.69777 -6.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_17</name><pose>0.094376 -18.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_18</name><pose>0.094376 -12.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_19</name><pose>0.094376 -6.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_20</name><pose>-5.86284 -18.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_21</name><pose>-5.86284 -12.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_22</name><pose>-5.86284 -6.4647 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_23</name><pose>13.4821 9.8190 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_24</name><pose>13.4821 15.8190 0 0 0 1.5708</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/MovAi/models/shelf</uri><name>shelf_25</name><pose>13.4821 21.8190 0 0 0 1.5708</pose></include>
+
+    <include>
+      <uri>
+        https://fuel.gazebosim.org/1.0/MovAi/models/pallet_box_mobile
+      </uri>
+      <name>pallet_box_0</name>
+      <pose>14.0222 -24.335 0.01 0 -0 0</pose>
+      <static>true</static>
+    </include>
+
+    <!-- Semantic task layer: A-C signs, navigation frames and Packing Station. -->
+    <include>
+      <uri>model://storage_markers</uri>
+      <name>semantic_locations</name>
+    </include>
+
+    <!-- Lightweight two-sided signs for every additional small rack D-AA. -->
+    <include>
+      <uri>model://rack_signs</uri>
+      <name>extra_rack_labels</name>
+    </include>
+
+    <!-- Static road obstacles are intentionally offset from aisle centerlines,
+         so global planning must route around them without sealing an aisle. -->
+    <model name="road_box_static_1"><pose>-2.5 -10.0 0.38 0 0 0.20</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.75 0.75 0.76</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.75 0.75 0.76</size></box></geometry><material><ambient>0.05 0.28 0.85 1</ambient><diffuse>0.08 0.38 0.95 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_2"><pose>3.0 -16.0 0.46 0 0 -0.16</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.90 0.72 0.92</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.90 0.72 0.92</size></box></geometry><material><ambient>0.80 0.18 0.04 1</ambient><diffuse>0.95 0.25 0.06 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_3"><pose>-7.8 -16.2 0.34 0 0 0.10</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.68 0.82 0.68</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.68 0.82 0.68</size></box></geometry><material><ambient>0.08 0.62 0.18 1</ambient><diffuse>0.10 0.76 0.22 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_4"><pose>8.5 -10.5 0.40 0 0 -0.30</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.82 0.82 0.80</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.82 0.82 0.80</size></box></geometry><material><ambient>0.72 0.50 0.03 1</ambient><diffuse>0.92 0.66 0.04 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_5"><pose>-1.5 3.80 0.45 0 0 0.25</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.72 0.92 0.90</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.72 0.92 0.90</size></box></geometry><material><ambient>0.45 0.10 0.68 1</ambient><diffuse>0.58 0.15 0.82 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_6"><pose>9.0 12.0 0.36 0 0 -0.10</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.86 0.66 0.72</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.86 0.66 0.72</size></box></geometry><material><ambient>0.05 0.58 0.66 1</ambient><diffuse>0.08 0.72 0.82 1</diffuse></material></visual></link></model>
+    <model name="road_box_static_7"><pose>-10.0 17.0 0.42 0 0 0.18</pose><static>true</static><link name="box"><collision name="collision"><geometry><box><size>0.78 0.88 0.84</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.78 0.88 0.84</size></box></geometry><material><ambient>0.74 0.08 0.12 1</ambient><diffuse>0.90 0.11 0.16 1</diffuse></material></visual></link></model>
+
+    <!-- These LiDAR-visible worker proxies are moved to random safe waypoints
+         by scripts/random_people.py, started automatically by run_demo.sh. -->
+    <include><uri>model://random_worker</uri><name>random_worker_1</name><pose>-8 -10 0 0 0 0</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_2</name><pose>7 3.8 0 0 0 3.14159</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_3</name><pose>-4 17 0 0 0 0</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_4</name><pose>7 -12 0 0 0 1.5708</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_5</name><pose>-3.4 -5 0 0 0 0</pose></include>
+
+    <!-- A few distinct task objects. Each box has exactly one solid color and
+         a semantic model name used by the task planner / VQA layer. -->
+    <model name="special_blue_box">
+      <!-- Storage A, slot A01: embedded among cartons for VQA comparison. -->
+      <pose>-6.25528 -0.876987 0.83 0 0 0</pose>
+      <!-- Kept stationary by zero gravity while waiting. The suction plugin
+           later moves it through a real fixed constraint, never set_pose. -->
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="special_red_box">
+      <!-- Storage B, slot B02. -->
+      <pose>-5.03528 2.12097 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="special_green_box">
+      <!-- Storage C, slot C03. -->
+      <pose>-4.31528 5.12108 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Distractors deliberately repeat colors between storage zones. VQA
+         therefore has to resolve both color and Storage A/B/C. -->
+    <model name="distractor_red_A02">
+      <pose>-5.03528 -0.876987 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="distractor_green_A03">
+      <pose>-4.31528 -0.876987 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="distractor_blue_B01">
+      <pose>-6.25528 2.12097 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="distractor_green_B03">
+      <pose>-4.31528 2.12097 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="distractor_blue_C01">
+      <pose>-6.25528 5.12108 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="distractor_red_C02">
+      <pose>-5.03528 5.12108 0.83 0 0 0</pose>
+      <static>false</static>
+      <link name="box">
+        <gravity>false</gravity>
+        <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
+        <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

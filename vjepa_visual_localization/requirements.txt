@@ -1,0 +1,8 @@
+numpy>=1.26,<1.28
+opencv-python>=4.8,<5
+PyYAML>=6
+torch>=2.6,<3
+torchvision>=0.21,<1
+transformers>=4.53,<5
+safetensors>=0.4
+huggingface-hub>=0.27

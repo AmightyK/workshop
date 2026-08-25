@@ -1,0 +1,23 @@
+# The showcase rotates these prepared questions while the robot follows a
+# fixed route. Answers are deterministic templates filled from the current
+# V-JEPA pose, temporal state, A* plan and LiDAR/Gazebo evaluator context.
+interval_sec: 3.5
+stabilize_frames: 2
+
+questions:
+  - id: area
+    text: "Robot dang o khu vuc nao?"
+  - id: obstacle
+    text: "Phia truoc co vat can khong?"
+  - id: person
+    text: "Co nguoi o gan tuyen duong khong?"
+  - id: avoidance
+    text: "Robot dang ne vat gi?"
+  - id: motion
+    text: "Robot dang di chuyen nhu the nao?"
+  - id: route
+    text: "A* con duong di de theo khong?"
+  - id: tracking
+    text: "Dinh vi V-JEPA co on dinh khong?"
+  - id: comparison
+    text: "V-JEPA lech bao nhieu so voi Gazebo truth?"

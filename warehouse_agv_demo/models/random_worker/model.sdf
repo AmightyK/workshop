@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="random_worker">
+    <static>false</static>
+    <link name="body">
+      <gravity>false</gravity>
+      <inertial>
+        <mass>65.0</mass>
+        <inertia>
+          <ixx>12.8</ixx><iyy>12.8</iyy><izz>3.5</izz>
+        </inertia>
+      </inertial>
+      <!-- The visual is OpenRobotics' CC0 "Casual female" MakeHuman model,
+           pinned to Fuel version 4. Scale 0.86 lowers it from about 1.77 m to
+           about 1.52 m so it fits this compact warehouse scene. -->
+      <visual name="person_visual">
+        <pose>0 0 0.017 0.04 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Casual%20female/4/files/meshes/casual_female.dae</uri>
+            <scale>0.86 0.86 0.86</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- A simple proxy remains separate from the detailed render mesh. It
+           gives stable LiDAR returns without expensive mesh collision. -->
+      <collision name="person_collision">
+        <pose>0 0 0.76 0 0 0</pose>
+        <geometry>
+          <cylinder><radius>0.23</radius><length>1.52</length></cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <!-- VelocityControl integrates motion every simulation step. The Python
+         controller publishes smooth forward/yaw velocities instead of
+         teleporting this model through repeated set_pose calls. -->
+    <plugin filename="gz-sim-velocity-control-system"
+            name="gz::sim::systems::VelocityControl"/>
+    <plugin filename="gz-sim-pose-publisher-system"
+            name="gz::sim::systems::PosePublisher">
+      <publish_model_pose>true</publish_model_pose>
+      <publish_link_pose>false</publish_link_pose>
+      <publish_sensor_pose>false</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <use_pose_vector_msg>false</use_pose_vector_msg>
+      <update_frequency>30</update_frequency>
+    </plugin>
+  </model>
+</sdf>

@@ -1,0 +1,131 @@
+video:
+  # Rolling low-latency profile: the newest 1 s window at 4 sampled frames/s.
+  # Four frames remain compatible with V-JEPA2's temporal tubelet size 2.
+  clip_duration_sec: 1.0
+  num_sampled_frames: 4
+  sampling: uniform
+  # Twice the old latent density. At the normal AGV speed this leaves roughly
+  # 0.2-0.3 m between consecutive visual anchors instead of about 0.5 m.
+  stride_sec: 0.5
+
+synchronization:
+  pose_method: interpolate
+  pose_tolerance_sec: 0.2
+  video_time_offset_sec: 0.0
+
+model:
+  checkpoint: facebook/vjepa2-vitl-fpc64-256
+  device: cuda
+  dtype: float16
+  return_local_tokens: true
+  normalize_embeddings: true
+
+mapping:
+  batch_size: 1
+
+retrieval:
+  global_top_k: 20
+  similarity: cosine
+
+pose_estimator:
+  method: top1
+  weighted_alpha: 10.0
+  weighted_radius_m: 2.0
+
+# Camera-only temporal tracking. The previous accepted V-JEPA pose is the
+# motion prior; odometry and Gazebo truth are never read by the localizer.
+temporal_tracking:
+  enabled: true
+  candidate_pool: 0  # 0 searches every saved latent before applying the gate
+  # Gazebo always spawns the AGV at the beginning of this recorded closed
+  # route. Limit only the first match to the first four latent anchors so a
+  # repeated south-corridor image cannot initialize at clip 60. Later matches
+  # use the previous accepted V-JEPA pose and the complete latent database.
+  initial_route_index: 0
+  initial_route_window: 3
+  max_linear_speed_mps: 1.50
+  max_angular_speed_radps: 2.4
+  base_translation_gate_m: 0.65
+  base_yaw_gate_rad: 0.55
+  max_translation_gate_m: 2.2
+  max_yaw_gate_rad: 2.8
+  distance_penalty: 0.04
+  yaw_penalty: 0.015
+  smoothing_alpha: 0.82
+  # The live AGV moves faster than the original mapping traversal. Allow enough
+  # image-earned credit to consume two 0.5 s map anchors per inference while
+  # the forward-sequence gate still prevents arbitrary jumps.
+  max_index_advance_per_sec: 4.0
+  # Expanding optical flow advances the prior along the recorded latent
+  # sequence. In-place yaw and a person crossing a small image area do not.
+  camera_forward_expansion_threshold: 0.035
+  camera_min_fit_inlier_ratio: 0.14
+  camera_min_essential_inlier_ratio: 0.35
+  camera_max_forward_translation_z: -0.75
+  # A small score tie-breaker complements (but does not replace) image-motion
+  # credit. The old 0.055 value overran a slow obstacle-avoidance run.
+  forward_progress_bonus: 0.01
+  # During rack-facing yaw or a full stop, preserve XY instead of allowing a
+  # visually similar shelf to move the estimate sideways.
+  stationary_translation_gate_m: 0.18
+  relocalization_frames: 4
+  relocalization_cluster_radius_m: 1.2
+  relocalization_min_similarity: 0.90
+  relocalization_max_jump_m: 4.0
+
+evaluation:
+  # Compare V-JEPA against Gazebo truth only while the AGV is translating.
+  min_translation_m: 0.10
+  live_motion_window_sec: 1.0
+
+online:
+  # Dedicated BEST_EFFORT ROS 2 DDS stream; it can be consumed remotely by Orin.
+  camera_topic: /vjepa/camera/image_raw
+  pose_topic: /vjepa_pose
+  debug_topic: /vjepa_localization/debug
+  latent_topic: /vjepa_latent
+  frame_id: map
+  position_variance_m2: 0.25
+  yaw_variance_rad2: 0.12
+
+warehouse_experiment:
+  inventory: ../warehouse_agv_demo/config/inventory_locations.yaml
+  goal_timeout_sec: 100.0
+  goal_retries: 2
+  goal_retry_delay_sec: 2.0
+  action_server_timeout_sec: 45.0
+  status_interval_sec: 1.0
+  obstacle_detection_distance_m: 2.2
+  obstacle_front_half_angle_rad: 0.65
+  avoidance_angular_speed_radps: 0.12
+  # Mapping deliberately visits the physical RGB pickup pose of every slot,
+  # not an old V-JEPA error-compensation pose near the cabinet. Query/evaluation
+  # repeats this exact ordered route; the normal picker derives dense Nav2
+  # checkpoints from the saved poses.npy and therefore cannot shortcut through
+  # an unrecorded aisle.
+  mapping_waypoints: &warehouse_latent_route
+    - {name: dock_exit, x: 10.8, y: -10.0, yaw: 3.14159}
+    - {name: east_cross_aisle, x: 5.5, y: -10.0, yaw: 3.14159}
+    - {name: central_south, x: -2.0, y: -10.0, yaw: 1.5708}
+    - {name: storage_A_staging, x: -2.0, y: -2.3, yaw: 1.5708}
+    - {name: A03_camera_approach, x: -4.31528, y: -1.94, yaw: 1.5708}
+    - {name: A02_camera_approach, x: -5.03528, y: -1.94, yaw: 1.5708}
+    - {name: A01_camera_approach, x: -6.25528, y: -1.94, yaw: 1.5708}
+    - {name: storage_B_staging, x: -2.0, y: 0.8, yaw: 1.5708}
+    - {name: B03_camera_approach, x: -4.31528, y: 1.06, yaw: 1.5708}
+    - {name: B02_camera_approach, x: -5.03528, y: 1.06, yaw: 1.5708}
+    - {name: B01_camera_approach, x: -6.25528, y: 1.06, yaw: 1.5708}
+    - {name: storage_C_staging, x: -2.5, y: 3.8, yaw: 3.14159}
+    - {name: C03_camera_approach, x: -4.31528, y: 4.06, yaw: 1.5708}
+    - {name: C02_camera_approach, x: -5.03528, y: 4.06, yaw: 1.5708}
+    - {name: C01_camera_approach, x: -6.25528, y: 4.06, yaw: 1.5708}
+    - {name: storage_C_exit, x: -2.0, y: 3.8, yaw: -1.5708}
+    - {name: storage_B_return, x: -2.0, y: 0.8, yaw: -1.5708}
+    - {name: storage_A_return, x: -2.0, y: -2.3, yaw: -1.5708}
+    # This lane naturally settles around x=-1.5 while avoiding the fixed road
+    # box; using its reachable center prevents a false survey timeout.
+    - {name: central_return, x: -1.5, y: -10.0, yaw: -1.5708}
+    - {name: south_center, x: 4.0, y: -16.0, yaw: 0.0}
+    - {name: packing_station_view, x: 10.8, y: -9.0, yaw: -1.5708}
+    - {name: charging_dock, x: 13.9, y: -10.6, yaw: 3.14159}
+  query_waypoints: *warehouse_latent_route

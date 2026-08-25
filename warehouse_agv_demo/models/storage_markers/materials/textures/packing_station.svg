@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512">
+  <rect width="1024" height="512" fill="#f7f7f2"/>
+  <rect x="16" y="16" width="992" height="480" fill="none" stroke="#111" stroke-width="32"/>
+  <text x="512" y="230" text-anchor="middle" font-family="DejaVu Sans" font-size="104" font-weight="700" fill="#111">PACKING</text>
+  <text x="512" y="370" text-anchor="middle" font-family="DejaVu Sans" font-size="104" font-weight="700" fill="#111">STATION</text>
+</svg>

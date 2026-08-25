@@ -1,0 +1,396 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="warehouse_agv">
+    <link name="base_link">
+      <pose>0 0 0.16406 0 0 0</pose>
+      <inertial>
+        <mass>24.7</mass>
+        <inertia>
+          <ixx>0.412</ixx><iyy>0.815</iyy><izz>1.118</izz>
+        </inertia>
+      </inertial>
+      <collision name="chassis_collision">
+        <pose>0 0 -0.0175 0 0 0</pose>
+        <geometry><box><size>0.34375 0.2625 0.153125</size></box></geometry>
+        <surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
+      </collision>
+
+      <!-- Smooth one-piece inVia-style body. This mesh contains a genuine
+           deep open-top cavity instead of overlapping primitive boxes. -->
+      <visual name="invia_body_shell">
+        <geometry><mesh><uri>model://warehouse_agv/meshes/invia_body.dae</uri><scale>1.375 1.25 0.875</scale></mesh></geometry>
+        <material>
+          <ambient>0.030 0.034 0.040 1</ambient>
+          <diffuse>0.060 0.067 0.078 1</diffuse>
+          <specular>0.42 0.42 0.45 1</specular>
+        </material>
+      </visual>
+      <visual name="thin_black_bumper">
+        <geometry><mesh><uri>model://warehouse_agv/meshes/invia_bumper.dae</uri><scale>1.375 1.25 0.875</scale></mesh></geometry>
+        <material>
+          <ambient>0.008 0.009 0.011 1</ambient>
+          <diffuse>0.014 0.016 0.020 1</diffuse>
+          <specular>0.24 0.24 0.26 1</specular>
+        </material>
+      </visual>
+      <!-- Compact slash emblem instead of the old rectangular side plate. -->
+      <visual name="logo_left_white_a">
+        <pose>-0.11 0.15125 0.02625 0 0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.88 0.88 0.88 1</ambient><diffuse>0.96 0.96 0.96 1</diffuse></material>
+      </visual>
+      <visual name="logo_left_white_b">
+        <pose>-0.0825 0.15125 0.02625 0 -0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.88 0.88 0.88 1</ambient><diffuse>0.96 0.96 0.96 1</diffuse></material>
+      </visual>
+      <visual name="logo_left_red">
+        <pose>-0.055 0.15125 0.02625 0 0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.62 0.018 0.025 1</ambient><diffuse>0.84 0.025 0.035 1</diffuse></material>
+      </visual>
+      <visual name="logo_right_white_a">
+        <pose>-0.11 -0.15125 0.02625 0 0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.88 0.88 0.88 1</ambient><diffuse>0.96 0.96 0.96 1</diffuse></material>
+      </visual>
+      <visual name="logo_right_white_b">
+        <pose>-0.0825 -0.15125 0.02625 0 -0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.88 0.88 0.88 1</ambient><diffuse>0.96 0.96 0.96 1</diffuse></material>
+      </visual>
+      <visual name="logo_right_red">
+        <pose>-0.055 -0.15125 0.02625 0 0.22 0</pose><geometry><box><size>0.01375 0.005 0.04375</size></box></geometry>
+        <material><ambient>0.62 0.018 0.025 1</ambient><diffuse>0.84 0.025 0.035 1</diffuse></material>
+      </visual>
+      <visual name="red_side_accents">
+        <geometry><mesh><uri>model://warehouse_agv/meshes/invia_red_stripe.dae</uri><scale>1.375 1.25 0.875</scale></mesh></geometry>
+      </visual>
+
+      <!-- Horizontal guide slots for the two bottom scissor pivots. -->
+      <visual name="lower_scissor_frame">
+        <pose>0 0 -0.08306 0 0 0</pose>
+        <geometry><box><size>0.275 0.2125 0.025</size></box></geometry>
+        <material><ambient>0.025 0.028 0.033 1</ambient><diffuse>0.055 0.060 0.070 1</diffuse><specular>0.4 0.4 0.4 1</specular></material>
+      </visual>
+      <visual name="scissor_rail_left">
+        <pose>0 0.08125 -0.07706 0 0 0</pose>
+        <geometry><box><size>0.275 0.03125 0.015</size></box></geometry>
+        <material><ambient>0.025 0.028 0.033 1</ambient><diffuse>0.05 0.055 0.065 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+      <visual name="scissor_rail_right">
+        <pose>0 -0.08125 -0.07706 0 0 0</pose>
+        <geometry><box><size>0.275 0.03125 0.015</size></box></geometry>
+        <material><ambient>0.025 0.028 0.033 1</ambient><diffuse>0.05 0.055 0.065 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+
+      <!-- Fixed yokes connect the four compact wheels to the lower shell. -->
+      <visual name="wheel_yoke_front_left">
+        <pose>0.116875 0.10625 -0.098 0 0 0</pose><geometry><box><size>0.048125 0.04 0.03125</size></box></geometry>
+        <material><ambient>0.055 0.058 0.065 1</ambient><diffuse>0.105 0.110 0.120 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+      <visual name="wheel_yoke_front_right">
+        <pose>0.116875 -0.10625 -0.098 0 0 0</pose><geometry><box><size>0.048125 0.04 0.03125</size></box></geometry>
+        <material><ambient>0.055 0.058 0.065 1</ambient><diffuse>0.105 0.110 0.120 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+      <visual name="wheel_yoke_rear_left">
+        <pose>-0.116875 0.10625 -0.098 0 0 0</pose><geometry><box><size>0.048125 0.04 0.03125</size></box></geometry>
+        <material><ambient>0.055 0.058 0.065 1</ambient><diffuse>0.105 0.110 0.120 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+      <visual name="wheel_yoke_rear_right">
+        <pose>-0.116875 -0.10625 -0.098 0 0 0</pose><geometry><box><size>0.048125 0.04 0.03125</size></box></geometry>
+        <material><ambient>0.055 0.058 0.065 1</ambient><diffuse>0.105 0.110 0.120 1</diffuse><specular>0.35 0.35 0.35 1</specular></material>
+      </visual>
+
+      <sensor name="imu" type="imu">
+        <always_on>true</always_on><update_rate>50</update_rate>
+        <topic>/warehouse_agv/imu</topic>
+      </sensor>
+    </link>
+
+    <!-- Four small underbody wheels replace the old exposed wheel pair. -->
+    <link name="wheel_front_left">
+      <pose>0.116875 0.10625 0.0375 1.5708 0 0</pose>
+      <inertial><mass>0.75</mass><inertia><ixx>0.002</ixx><iyy>0.002</iyy><izz>0.001</izz></inertia></inertial>
+      <collision name="collision"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><surface><friction><ode><mu>1.2</mu><mu2>0.25</mu2><fdir1>1 0 0</fdir1><slip1>0.01</slip1><slip2>0.04</slip2></ode></friction></surface></collision>
+      <visual name="tire"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><material><ambient>0.010 0.010 0.012 1</ambient><diffuse>0.022 0.022 0.026 1</diffuse></material></visual>
+      <visual name="hub"><pose>0 0 0.01625 0 0 0</pose><geometry><cylinder><radius>0.0125</radius><length>0.005</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.33 0.36 1</diffuse></material></visual>
+    </link>
+    <link name="wheel_front_right">
+      <pose>0.116875 -0.10625 0.0375 1.5708 0 0</pose>
+      <inertial><mass>0.75</mass><inertia><ixx>0.002</ixx><iyy>0.002</iyy><izz>0.001</izz></inertia></inertial>
+      <collision name="collision"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><surface><friction><ode><mu>1.2</mu><mu2>0.25</mu2><fdir1>1 0 0</fdir1><slip1>0.01</slip1><slip2>0.04</slip2></ode></friction></surface></collision>
+      <visual name="tire"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><material><ambient>0.010 0.010 0.012 1</ambient><diffuse>0.022 0.022 0.026 1</diffuse></material></visual>
+      <visual name="hub"><pose>0 0 -0.01625 0 0 0</pose><geometry><cylinder><radius>0.0125</radius><length>0.005</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.33 0.36 1</diffuse></material></visual>
+    </link>
+    <joint name="wheel_front_left_joint" type="revolute">
+      <parent>base_link</parent><child>wheel_front_left</child>
+      <axis><xyz expressed_in="__model__">0 1 0</xyz><limit><effort>80</effort><velocity>40</velocity></limit><dynamics><damping>0.12</damping><friction>0.02</friction></dynamics></axis>
+    </joint>
+    <joint name="wheel_front_right_joint" type="revolute">
+      <parent>base_link</parent><child>wheel_front_right</child>
+      <axis><xyz expressed_in="__model__">0 1 0</xyz><limit><effort>80</effort><velocity>40</velocity></limit><dynamics><damping>0.12</damping><friction>0.02</friction></dynamics></axis>
+    </joint>
+
+    <link name="wheel_rear_left">
+      <pose>-0.116875 0.10625 0.0375 1.5708 0 0</pose>
+      <inertial><mass>0.75</mass><inertia><ixx>0.002</ixx><iyy>0.002</iyy><izz>0.001</izz></inertia></inertial>
+      <collision name="collision"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><surface><friction><ode><mu>1.2</mu><mu2>0.25</mu2><fdir1>1 0 0</fdir1><slip1>0.01</slip1><slip2>0.04</slip2></ode></friction></surface></collision>
+      <visual name="tire"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><material><ambient>0.010 0.010 0.012 1</ambient><diffuse>0.022 0.022 0.026 1</diffuse></material></visual>
+      <visual name="hub"><pose>0 0 0.01625 0 0 0</pose><geometry><cylinder><radius>0.0125</radius><length>0.005</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.33 0.36 1</diffuse></material></visual>
+    </link>
+    <link name="wheel_rear_right">
+      <pose>-0.116875 -0.10625 0.0375 1.5708 0 0</pose>
+      <inertial><mass>0.75</mass><inertia><ixx>0.002</ixx><iyy>0.002</iyy><izz>0.001</izz></inertia></inertial>
+      <collision name="collision"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><surface><friction><ode><mu>1.2</mu><mu2>0.25</mu2><fdir1>1 0 0</fdir1><slip1>0.01</slip1><slip2>0.04</slip2></ode></friction></surface></collision>
+      <visual name="tire"><geometry><cylinder><radius>0.0375</radius><length>0.03</length></cylinder></geometry><material><ambient>0.010 0.010 0.012 1</ambient><diffuse>0.022 0.022 0.026 1</diffuse></material></visual>
+      <visual name="hub"><pose>0 0 -0.01625 0 0 0</pose><geometry><cylinder><radius>0.0125</radius><length>0.005</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.33 0.36 1</diffuse></material></visual>
+    </link>
+    <joint name="wheel_rear_left_joint" type="revolute"><parent>base_link</parent><child>wheel_rear_left</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><effort>80</effort><velocity>40</velocity></limit><dynamics><damping>0.12</damping><friction>0.02</friction></dynamics></axis></joint>
+    <joint name="wheel_rear_right_joint" type="revolute"><parent>base_link</parent><child>wheel_rear_right</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><effort>80</effort><velocity>40</velocity></limit><dynamics><damping>0.12</damping><friction>0.02</friction></dynamics></axis></joint>
+
+    <!-- Five-stage functional scissor lift. Its first feet are 10 mm above
+         the wheel tops; 80% of the folded pack sits inside the low shell. -->
+    <link name="scissor_stage_1"><pose>0 0 0.110961 0 0 0</pose><gravity>false</gravity><inertial><mass>0.034</mass><inertia><ixx>0.00017</ixx><iyy>0.00017</iyy><izz>0.00017</izz></inertia></inertial></link>
+    <link name="scissor_stage_2"><pose>0 0 0.162882 0 0 0</pose><gravity>false</gravity><inertial><mass>0.034</mass><inertia><ixx>0.00017</ixx><iyy>0.00017</iyy><izz>0.00017</izz></inertia></inertial></link>
+    <link name="scissor_stage_3"><pose>0 0 0.214803 0 0 0</pose><gravity>false</gravity><inertial><mass>0.034</mass><inertia><ixx>0.00017</ixx><iyy>0.00017</iyy><izz>0.00017</izz></inertia></inertial></link>
+    <link name="scissor_stage_4"><pose>0 0 0.266724 0 0 0</pose><gravity>false</gravity><inertial><mass>0.034</mass><inertia><ixx>0.00017</ixx><iyy>0.00017</iyy><izz>0.00017</izz></inertia></inertial></link>
+    <link name="scissor_stage_5"><pose>0 0 0.318646 0 0 0</pose><gravity>false</gravity><inertial><mass>0.034</mass><inertia><ixx>0.00017</ixx><iyy>0.00017</iyy><izz>0.00017</izz></inertia></inertial></link>
+    <joint name="scissor_stage_1_joint" type="prismatic"><parent>base_link</parent><child>scissor_stage_1</child><axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>0.12375</upper><effort>80</effort><velocity>0.165</velocity></limit></axis></joint>
+    <joint name="scissor_stage_2_joint" type="prismatic"><parent>base_link</parent><child>scissor_stage_2</child><axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>0.3575</upper><effort>80</effort><velocity>0.34375</velocity></limit></axis></joint>
+    <joint name="scissor_stage_3_joint" type="prismatic"><parent>base_link</parent><child>scissor_stage_3</child><axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>0.59125</upper><effort>80</effort><velocity>0.5775</velocity></limit></axis></joint>
+    <joint name="scissor_stage_4_joint" type="prismatic"><parent>base_link</parent><child>scissor_stage_4</child><axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>0.825</upper><effort>80</effort><velocity>0.7975</velocity></limit></axis></joint>
+    <joint name="scissor_stage_5_joint" type="prismatic"><parent>base_link</parent><child>scissor_stage_5</child><axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>1.05875</upper><effort>80</effort><velocity>1.03125</velocity></limit></axis></joint>
+
+    <!-- The lower pivots visibly slide toward the center. Their commanded
+         displacement is derived from a(theta) = L/2 * cos(theta). -->
+    <link name="bottom_slider_left">
+      <pose>-0.142022 0 0.085 0 0 0</pose><gravity>false</gravity>
+      <inertial><mass>0.15</mass><inertia><ixx>0.001</ixx><iyy>0.001</iyy><izz>0.001</izz></inertia></inertial>
+      <visual name="axle"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.01625</radius><length>0.2125</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.26 0.27 0.30 1</diffuse><specular>0.7 0.7 0.7 1</specular></material></visual>
+    </link>
+    <link name="bottom_slider_right">
+      <pose>0.142022 0 0.085 0 0 0</pose><gravity>false</gravity>
+      <inertial><mass>0.15</mass><inertia><ixx>0.001</ixx><iyy>0.001</iyy><izz>0.001</izz></inertia></inertial>
+      <visual name="axle"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.01625</radius><length>0.2125</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.26 0.27 0.30 1</diffuse><specular>0.7 0.7 0.7 1</specular></material></visual>
+    </link>
+    <joint name="bottom_slider_left_joint" type="prismatic"><parent>base_link</parent><child>bottom_slider_left</child><axis><xyz expressed_in="__model__">1 0 0</xyz><limit><lower>0</lower><upper>0.0825</upper><effort>60</effort><velocity>0.0825</velocity></limit></axis></joint>
+    <joint name="bottom_slider_right_joint" type="prismatic"><parent>base_link</parent><child>bottom_slider_right</child><axis><xyz expressed_in="__model__">-1 0 0</xyz><limit><lower>0</lower><upper>0.0825</upper><effort>60</effort><velocity>0.0825</velocity></limit></axis></joint>
+
+    <!-- Stage 1: one X is rendered on each side of the mechanism. -->
+    <link name="s1_left_a"><pose relative_to="scissor_stage_1">0 0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s1_left_b"><pose relative_to="scissor_stage_1">0 0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s1_right_a"><pose relative_to="scissor_stage_1">0 -0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s1_right_b"><pose relative_to="scissor_stage_1">0 -0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+
+    <!-- Stages 2 and 3 use the same center-pivot geometry. -->
+    <link name="s2_left_a"><pose relative_to="scissor_stage_2">0 0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s2_left_b"><pose relative_to="scissor_stage_2">0 0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s2_right_a"><pose relative_to="scissor_stage_2">0 -0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s2_right_b"><pose relative_to="scissor_stage_2">0 -0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s3_left_a"><pose relative_to="scissor_stage_3">0 0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s3_left_b"><pose relative_to="scissor_stage_3">0 0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s3_right_a"><pose relative_to="scissor_stage_3">0 -0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+    <link name="s3_right_b"><pose relative_to="scissor_stage_3">0 -0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual></link>
+
+    <!-- Added X stages 4 and 5. They use the same mass and inertia as stages
+         1-3 so the common angle controller cannot overshoot and flip a beam. -->
+    <link name="s4_left_a"><pose relative_to="scissor_stage_4">0 0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s4_left_b"><pose relative_to="scissor_stage_4">0 0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s4_right_a"><pose relative_to="scissor_stage_4">0 -0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s4_right_b"><pose relative_to="scissor_stage_4">0 -0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s5_left_a"><pose relative_to="scissor_stage_5">0 0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s5_left_b"><pose relative_to="scissor_stage_5">0 0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s5_right_a"><pose relative_to="scissor_stage_5">0 -0.08125 0 0 -0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="pivot"><pose>0 0 0 1.5708 0 0</pose><geometry><cylinder><radius>0.02</radius><length>0.0325</length></cylinder></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+    <link name="s5_right_b"><pose relative_to="scissor_stage_5">0 -0.08125 0 0 0.180797 0</pose><gravity>false</gravity><inertial><mass>0.12</mass><inertia><ixx>0.001</ixx><iyy>0.004</iyy><izz>0.004</izz></inertia></inertial><visual name="beam"><geometry><box><size>0.28875 0.0275 0.02</size></box></geometry><material><ambient>0.52 0.012 0.018 1</ambient><diffuse>0.80 0.020 0.028 1</diffuse></material></visual><visual name="end_pin_pos"><pose>0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual><visual name="end_pin_neg"><pose>-0.144375 0 0 0 0 0</pose><geometry><sphere><radius>0.01625</radius></sphere></geometry><material><ambient>0.14 0.15 0.17 1</ambient><diffuse>0.24 0.25 0.28 1</diffuse></material></visual></link>
+
+    <joint name="s1_left_a_joint" type="revolute"><parent>scissor_stage_1</parent><child>s1_left_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s1_left_b_joint" type="revolute"><parent>scissor_stage_1</parent><child>s1_left_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s1_right_a_joint" type="revolute"><parent>scissor_stage_1</parent><child>s1_right_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s1_right_b_joint" type="revolute"><parent>scissor_stage_1</parent><child>s1_right_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s2_left_a_joint" type="revolute"><parent>scissor_stage_2</parent><child>s2_left_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s2_left_b_joint" type="revolute"><parent>scissor_stage_2</parent><child>s2_left_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s2_right_a_joint" type="revolute"><parent>scissor_stage_2</parent><child>s2_right_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s2_right_b_joint" type="revolute"><parent>scissor_stage_2</parent><child>s2_right_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s3_left_a_joint" type="revolute"><parent>scissor_stage_3</parent><child>s3_left_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s3_left_b_joint" type="revolute"><parent>scissor_stage_3</parent><child>s3_left_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s3_right_a_joint" type="revolute"><parent>scissor_stage_3</parent><child>s3_right_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s3_right_b_joint" type="revolute"><parent>scissor_stage_3</parent><child>s3_right_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s4_left_a_joint" type="revolute"><parent>scissor_stage_4</parent><child>s4_left_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s4_left_b_joint" type="revolute"><parent>scissor_stage_4</parent><child>s4_left_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s4_right_a_joint" type="revolute"><parent>scissor_stage_4</parent><child>s4_right_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s4_right_b_joint" type="revolute"><parent>scissor_stage_4</parent><child>s4_right_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s5_left_a_joint" type="revolute"><parent>scissor_stage_5</parent><child>s5_left_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s5_left_b_joint" type="revolute"><parent>scissor_stage_5</parent><child>s5_left_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s5_right_a_joint" type="revolute"><parent>scissor_stage_5</parent><child>s5_right_a</child><axis><xyz expressed_in="__model__">0 -1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+    <joint name="s5_right_b_joint" type="revolute"><parent>scissor_stage_5</parent><child>s5_right_b</child><axis><xyz expressed_in="__model__">0 1 0</xyz><limit><lower>0</lower><upper>1.00</upper><effort>20</effort><velocity>0.50</velocity></limit><dynamics><damping>0.4</damping><friction>0.05</friction></dynamics></axis></joint>
+
+    <link name="lidar_link">
+      <!-- Compact 360-degree scanner above the two rear support plates. -->
+      <pose>-0.2063125 0 0.664 0 0 0</pose>
+      <gravity>false</gravity>
+      <inertial><mass>0.5</mass><inertia><ixx>0.002</ixx><iyy>0.002</iyy><izz>0.002</izz></inertia></inertial>
+      <visual name="wall_lidar"><geometry><cylinder><radius>0.025</radius><length>0.018</length></cylinder></geometry><material><ambient>0.025 0.028 0.034 1</ambient><diffuse>0.06 0.065 0.075 1</diffuse><specular>0.5 0.5 0.5 1</specular></material></visual>
+      <sensor name="lidar" type="gpu_lidar">
+        <always_on>true</always_on><update_rate>12</update_rate><visualize>true</visualize>
+        <topic>/warehouse_agv/scan</topic>
+        <lidar>
+          <scan><horizontal><samples>720</samples><resolution>1</resolution><min_angle>-3.14159</min_angle><max_angle>3.14159</max_angle></horizontal></scan>
+          <range><min>0.04</min><max>12.0</max><resolution>0.01</resolution></range>
+        </lidar>
+      </sensor>
+    </link>
+    <joint name="lidar_joint" type="fixed"><parent>fork_carriage</parent><child>lidar_link</child></joint>
+
+    <link name="camera_link">
+      <!-- The optical axis is parallel to the floor for visual localization. -->
+      <pose>-0.1915625 0 0.640 0 0 0</pose>
+      <gravity>false</gravity>
+      <inertial><mass>0.075</mass><inertia><ixx>0.00005</ixx><iyy>0.00005</iyy><izz>0.00005</izz></inertia></inertial>
+      <!-- Intel RealSense D435 physical envelope: 90 x 25 x 25 mm. The
+           camera faces positive X, so depth/width/height map to X/Y/Z. -->
+      <visual name="housing"><geometry><box><size>0.025 0.090 0.025</size></box></geometry><material><ambient>0.018 0.020 0.024 1</ambient><diffuse>0.03 0.034 0.04 1</diffuse></material></visual>
+      <visual name="depth_lens_left"><pose>0.014 0.028 0 0 1.5708 0</pose><geometry><cylinder><radius>0.006</radius><length>0.004</length></cylinder></geometry><material><ambient>0.01 0.06 0.13 1</ambient><diffuse>0.01 0.10 0.22 1</diffuse><specular>0.9 0.9 1 1</specular></material></visual>
+      <visual name="rgb_lens"><pose>0.014 0 0 0 1.5708 0</pose><geometry><cylinder><radius>0.005</radius><length>0.004</length></cylinder></geometry><material><ambient>0.015 0.035 0.055 1</ambient><diffuse>0.02 0.06 0.09 1</diffuse><specular>0.9 0.9 1 1</specular></material></visual>
+      <visual name="depth_lens_right"><pose>0.014 -0.028 0 0 1.5708 0</pose><geometry><cylinder><radius>0.006</radius><length>0.004</length></cylinder></geometry><material><ambient>0.01 0.06 0.13 1</ambient><diffuse>0.01 0.10 0.22 1</diffuse><specular>0.9 0.9 1 1</specular></material></visual>
+      <visual name="wall_mount"><pose>-0.006 0 -0.0175 0 0 0</pose><geometry><box><size>0.014 0.040 0.020</size></box></geometry><material><ambient>0.10 0.11 0.12 1</ambient><diffuse>0.18 0.19 0.21 1</diffuse></material></visual>
+      <sensor name="front_camera" type="camera">
+        <always_on>true</always_on><update_rate>32</update_rate><visualize>true</visualize>
+        <topic>/warehouse_agv/camera</topic>
+        <camera>
+          <horizontal_fov>1.22</horizontal_fov>
+          <image><width>640</width><height>360</height><format>R8G8B8</format></image>
+          <clip><near>0.08</near><far>100</far></clip>
+        </camera>
+      </sensor>
+    </link>
+    <joint name="camera_joint" type="fixed"><parent>fork_carriage</parent><child>camera_link</child></joint>
+
+    <!-- Flat lifting platform with no guard rails. -->
+    <link name="fork_carriage">
+      <pose>0 0 0.363575 0 0 0</pose>
+      <gravity>false</gravity>
+      <inertial><mass>4</mass><inertia><ixx>0.03</ixx><iyy>0.06</iyy><izz>0.07</izz></inertia></inertial>
+      <!-- Matches the full outer bumper bounding box: 0.394625 x 0.30625 m. -->
+      <visual name="platform"><geometry><box><size>0.394625 0.30625 0.025</size></box></geometry><material><ambient>0.55 0.014 0.020 1</ambient><diffuse>0.80 0.022 0.030 1</diffuse><specular>0.38 0.38 0.38 1</specular></material></visual>
+      <!-- Two fixed flat plates, one behind each suction cup. -->
+      <visual name="sensor_plate_left"><pose>-0.2063125 0.055 0.14 0 0 0</pose><geometry><box><size>0.018 0.055 0.28</size></box></geometry><material><ambient>0.55 0.014 0.020 1</ambient><diffuse>0.80 0.022 0.030 1</diffuse><specular>0.35 0.35 0.35 1</specular></material></visual>
+      <visual name="sensor_plate_right"><pose>-0.2063125 -0.055 0.14 0 0 0</pose><geometry><box><size>0.018 0.055 0.28</size></box></geometry><material><ambient>0.55 0.014 0.020 1</ambient><diffuse>0.80 0.022 0.030 1</diffuse><specular>0.35 0.35 0.35 1</specular></material></visual>
+      <!-- Horizontal cap joins the two plates and physically supports LiDAR. -->
+      <visual name="lidar_support_plate"><pose>-0.2063125 0 0.286 0 0 0</pose><geometry><box><size>0.070 0.150 0.012</size></box></geometry><material><ambient>0.08 0.085 0.095 1</ambient><diffuse>0.15 0.16 0.18 1</diffuse><specular>0.45 0.45 0.45 1</specular></material></visual>
+      <visual name="undertray_support"><pose>0 0 -0.0225 0 0 0</pose><geometry><box><size>0.342375 0.26625 0.02</size></box></geometry><material><ambient>0.035 0.038 0.045 1</ambient><diffuse>0.07 0.075 0.085 1</diffuse></material></visual>
+      <collision name="platform_collision"><geometry><box><size>0.394625 0.30625 0.025</size></box></geometry></collision>
+      <collision name="sensor_plate_left_collision"><pose>-0.2063125 0.055 0.14 0 0 0</pose><geometry><box><size>0.018 0.055 0.28</size></box></geometry></collision>
+      <collision name="sensor_plate_right_collision"><pose>-0.2063125 -0.055 0.14 0 0 0</pose><geometry><box><size>0.018 0.055 0.28</size></box></geometry></collision>
+      <collision name="lidar_support_plate_collision"><pose>-0.2063125 0 0.286 0 0 0</pose><geometry><box><size>0.070 0.150 0.012</size></box></geometry></collision>
+    </link>
+    <joint name="fork_lift_joint" type="prismatic">
+      <parent>base_link</parent><child>fork_carriage</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>0</lower><upper>1.0625</upper><effort>500</effort><velocity>0.5625</velocity></limit></axis>
+    </joint>
+    <link name="fork_reach">
+      <!-- Suction assembly is independent from the fixed sensor bracket. -->
+      <!-- Retracted T-head sits near the rear edge of the expanded tray. -->
+      <pose relative_to="fork_carriage">-0.225 0 0.065 0 0 0</pose>
+      <gravity>false</gravity>
+      <inertial><mass>2</mass><inertia><ixx>0.015</ixx><iyy>0.035</iyy><izz>0.035</izz></inertia></inertial>
+      <!-- The complete twin-cup head is one moving carriage. Its prismatic
+           guide and actuator are hidden below the platform surface. -->
+      <!-- Inverted-L carriage. Its vertical leg is the moving slider; the
+           horizontal leg is concealed inside / below the platform so the
+           cargo surface remains completely flat. -->
+      <visual name="inverted_l_slider"><pose>0 0 -0.083 0 0 0</pose><geometry><box><size>0.024 0.034 0.050</size></box></geometry><material><ambient>0.42 0.010 0.015 1</ambient><diffuse>0.66 0.016 0.023 1</diffuse><specular>0.30 0.30 0.30 1</specular></material></visual>
+      <visual name="inverted_l_horizontal"><pose>0.040 0 -0.064 0 0 0</pose><geometry><box><size>0.080 0.030 0.014</size></box></geometry><material><ambient>0.50 0.012 0.018 1</ambient><diffuse>0.74 0.018 0.026 1</diffuse><specular>0.30 0.30 0.30 1</specular></material></visual>
+      <!-- The foot of the open T-head is fixed to the forward end of the
+           inverted-L horizontal leg. Only this narrow T rises above the tray. -->
+      <visual name="suction_t_upright"><pose>0.080 0 0 0 0 0</pose><geometry><box><size>0.024 0.035 0.110</size></box></geometry><material><ambient>0.55 0.014 0.020 1</ambient><diffuse>0.80 0.022 0.030 1</diffuse><specular>0.35 0.35 0.35 1</specular></material></visual>
+      <visual name="suction_t_crossbar"><pose>0.080 0 0.0375 0 0 0</pose><geometry><box><size>0.024 0.145 0.035</size></box></geometry><material><ambient>0.55 0.014 0.020 1</ambient><diffuse>0.80 0.022 0.030 1</diffuse><specular>0.35 0.35 0.35 1</specular></material></visual>
+      <!-- Compact suction heads: the large grey cylinders were visually
+           misleading.  Each head now has only a short metal stem followed by
+           a shallow rubber pad, like the side profile of the real mechanism. -->
+      <visual name="suction_stem_left"><pose>0.096 0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.006</radius><length>0.008</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.34 0.37 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual>
+      <visual name="suction_stem_right"><pose>0.096 -0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.006</radius><length>0.008</length></cylinder></geometry><material><ambient>0.18 0.19 0.21 1</ambient><diffuse>0.32 0.34 0.37 1</diffuse><specular>0.65 0.65 0.65 1</specular></material></visual>
+      <visual name="suction_cup_left"><pose>0.105 0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.014</radius><length>0.010</length></cylinder></geometry><material><ambient>0.008 0.008 0.010 1</ambient><diffuse>0.018 0.018 0.022 1</diffuse></material></visual>
+      <visual name="suction_cup_right"><pose>0.105 -0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.014</radius><length>0.010</length></cylinder></geometry><material><ambient>0.008 0.008 0.010 1</ambient><diffuse>0.018 0.018 0.022 1</diffuse></material></visual>
+      <visual name="suction_lip_left"><pose>0.112 0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.0165</radius><length>0.004</length></cylinder></geometry><material><ambient>0.004 0.004 0.005 1</ambient><diffuse>0.010 0.010 0.012 1</diffuse></material></visual>
+      <visual name="suction_lip_right"><pose>0.112 -0.050 0.0375 0 1.5708 0</pose><geometry><cylinder><radius>0.0165</radius><length>0.004</length></cylinder></geometry><material><ambient>0.004 0.004 0.005 1</ambient><diffuse>0.010 0.010 0.012 1</diffuse></material></visual>
+      <collision name="inverted_l_slider_collision"><pose>0 0 -0.083 0 0 0</pose><geometry><box><size>0.024 0.034 0.050</size></box></geometry></collision>
+      <collision name="inverted_l_horizontal_collision"><pose>0.040 0 -0.064 0 0 0</pose><geometry><box><size>0.080 0.030 0.014</size></box></geometry></collision>
+      <collision name="suction_t_upright_collision"><pose>0.080 0 0 0 0 0</pose><geometry><box><size>0.024 0.035 0.110</size></box></geometry></collision>
+      <collision name="suction_t_crossbar_collision"><pose>0.080 0 0.0375 0 0 0</pose><geometry><box><size>0.024 0.145 0.035</size></box></geometry></collision>
+    </link>
+    <joint name="fork_reach_joint" type="prismatic">
+      <parent>fork_carriage</parent><child>fork_reach</child>
+      <!-- The visible suction head is compact; the extra reach is provided by
+           the concealed linear guide below the tray. -->
+      <axis><xyz>1 0 0</xyz><limit><lower>0</lower><upper>0.36125</upper><effort>180</effort><velocity>0.40</velocity></limit></axis>
+    </joint>
+
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>wheel_front_left_joint</left_joint>
+      <left_joint>wheel_rear_left_joint</left_joint>
+      <right_joint>wheel_front_right_joint</right_joint>
+      <right_joint>wheel_rear_right_joint</right_joint>
+      <wheel_separation>0.2125</wheel_separation><wheel_radius>0.0375</wheel_radius>
+      <topic>/model/warehouse_agv/cmd_vel</topic>
+      <odom_topic>/model/warehouse_agv/odometry</odom_topic>
+      <tf_topic>/model/warehouse_agv/tf</tf_topic>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <frame_id>odom</frame_id><child_frame_id>base_link</child_frame_id>
+      <max_linear_acceleration>3.0</max_linear_acceleration><min_linear_acceleration>-3.0</min_linear_acceleration>
+      <max_angular_acceleration>4.0</max_angular_acceleration><min_angular_acceleration>-4.0</min_angular_acceleration>
+      <max_linear_velocity>1.5</max_linear_velocity><min_linear_velocity>-0.8</min_linear_velocity>
+      <max_angular_velocity>1.8</max_angular_velocity><min_angular_velocity>-1.8</min_angular_velocity>
+    </plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>fork_lift_joint</joint_name>
+      <topic>/model/warehouse_agv/joint/fork_platform_joint/cmd_pos</topic>
+      <p_gain>2200</p_gain><i_gain>25</i_gain><d_gain>120</d_gain>
+      <initial_position>0</initial_position>
+    </plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>scissor_stage_1_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_stage_1/cmd_pos</topic><p_gain>900</p_gain><d_gain>55</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>scissor_stage_2_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_stage_2/cmd_pos</topic><p_gain>900</p_gain><d_gain>55</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>scissor_stage_3_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_stage_3/cmd_pos</topic><p_gain>900</p_gain><d_gain>55</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>scissor_stage_4_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_stage_4/cmd_pos</topic><p_gain>900</p_gain><d_gain>55</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>scissor_stage_5_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_stage_5/cmd_pos</topic><p_gain>900</p_gain><d_gain>55</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>bottom_slider_left_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_bottom_slider/cmd_pos</topic><p_gain>500</p_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>bottom_slider_right_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_bottom_slider/cmd_pos</topic><p_gain>500</p_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+<plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s1_left_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s1_left_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s1_right_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s1_right_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s2_left_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s2_left_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s2_right_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s2_right_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s3_left_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s3_left_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s3_right_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s3_right_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s4_left_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s4_left_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s4_right_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s4_right_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s5_left_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s5_left_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s5_right_a_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController"><joint_name>s5_right_b_joint</joint_name><topic>/model/warehouse_agv/joint/scissor_angle/cmd_pos</topic><p_gain>500</p_gain><i_gain>15</i_gain><d_gain>35</d_gain><initial_position>0</initial_position></plugin>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>fork_reach_joint</joint_name>
+      <topic>/model/warehouse_agv/joint/fork_reach_joint/cmd_pos</topic>
+      <p_gain>850</p_gain><i_gain>12</i_gain><d_gain>55</d_gain>
+      <initial_position>0</initial_position>
+    </plugin>
+    <!-- One physical suction contract per selectable task carton. All joints
+         start detached by run_demo.sh and only the camera-selected box is
+         attached after the mechanical contact gate passes. -->
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>special_blue_box</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/special_blue_box/detach</detach_topic><attach_topic>/warehouse_agv/gripper/special_blue_box/attach</attach_topic><output_topic>/warehouse_agv/gripper/special_blue_box/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_red_A02</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_red_A02/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_red_A02/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_red_A02/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_green_A03</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_green_A03/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_green_A03/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_green_A03/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_blue_B01</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_blue_B01/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_blue_B01/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_blue_B01/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>special_red_box</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/special_red_box/detach</detach_topic><attach_topic>/warehouse_agv/gripper/special_red_box/attach</attach_topic><output_topic>/warehouse_agv/gripper/special_red_box/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_green_B03</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_green_B03/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_green_B03/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_green_B03/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_blue_C01</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_blue_C01/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_blue_C01/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_blue_C01/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_red_C02</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_red_C02/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_red_C02/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_red_C02/attached</output_topic></plugin>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>special_green_box</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/special_green_box/detach</detach_topic><attach_topic>/warehouse_agv/gripper/special_green_box/attach</attach_topic><output_topic>/warehouse_agv/gripper/special_green_box/attached</output_topic></plugin>
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose><publish_sensor_pose>true</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose><publish_visual_pose>false</publish_visual_pose>
+    </plugin>
+  </model>
+</sdf>
