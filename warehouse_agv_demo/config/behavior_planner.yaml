@@ -1,0 +1,28 @@
+behavior_planner:
+  prediction_horizon_s: 4.0
+  prediction_step_s: 0.25
+  nominal_approach_speed_mps: 0.55
+  corridor_half_width_m: 0.62
+  combined_safety_radius_m: 0.62
+  emergency_radius_m: 0.72
+  probability_sigma_m: 0.34
+  collision_probability_threshold: 0.55
+  # Use the full prediction horizon: brake as soon as the continuous crossing
+  # worker is predicted to intersect the route, leaving visible clearance.
+  required_pass_window_s: 4.0
+  # Human #1 starts moving as the AGV approaches. This delay is deliberately
+  # longer than that normal encounter, avoiding an unnecessary route change.
+  replan_after_s: 10.0
+  replan_cooldown_s: 15.0
+  stationary_speed_mps: 0.08
+  # Human #2 can be passed only after a bounded wait when tracking proves it
+  # is stationary at the corridor edge with ample center separation. MPPI's
+  # local collision critic remains authoritative during this short window.
+  overtake_after_s: 4.0
+  overtake_min_lateral_m: 0.55
+  overtake_min_separation_m: 1.20
+  overtake_authorization_s: 5.0
+
+scenarios:
+  random_worker_4: human_1_static_until_close
+  random_worker_5: human_2_continuous_crossing

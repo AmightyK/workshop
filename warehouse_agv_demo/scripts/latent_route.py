@@ -86,6 +86,109 @@ def prune_hard_corner_checkpoints(
     return route[np.asarray(kept, dtype=np.int64)].copy()
 
 
+def hard_corner_points(
+    poses: np.ndarray, *, angle_threshold_rad: float = 0.75
+) -> np.ndarray:
+    """Return XY apexes whose geometric turn needs curvature speed control."""
+    route = np.asarray(poses, dtype=np.float64)
+    points = []
+    for index in range(1, len(route) - 1):
+        incoming = route[index, :2] - route[index - 1, :2]
+        outgoing = route[index + 1, :2] - route[index, :2]
+        if np.linalg.norm(incoming) <= 0.05 or np.linalg.norm(outgoing) <= 0.05:
+            continue
+        turn = abs(
+            wrap_angle(
+                math.atan2(float(outgoing[1]), float(outgoing[0]))
+                - math.atan2(float(incoming[1]), float(incoming[0]))
+            )
+        )
+        if turn >= float(angle_threshold_rad):
+            points.append(route[index, :2])
+    if not points:
+        return np.empty((0, 2), dtype=np.float64)
+    return np.asarray(points, dtype=np.float64)
+
+
+def round_hard_corners(
+    poses: np.ndarray,
+    *,
+    angle_threshold_rad: float = 0.75,
+    radius_m: float = 0.90,
+    curve_samples: int = 3,
+) -> np.ndarray:
+    """Replace each 90-degree apex with a quadratic spatial transition.
+
+    The old route deleted the apex and asked NavFn to connect two distant
+    checkpoints. At the second Shelf A turn that cut across the corner and
+    left MPPI correcting after the apex. These samples retain aisle topology
+    while presenting a continuous tangent before steering latency accumulates.
+    """
+    route = np.asarray(poses, dtype=np.float64)
+    if len(route) <= 2:
+        return route.copy()
+    if radius_m <= 0.0 or curve_samples < 1:
+        raise ValueError("radius_m and curve_samples must be positive")
+    result = [route[0].copy()]
+    index = 1
+    while index < len(route) - 1:
+        previous = route[index - 1]
+        apex = route[index]
+        # Dense map sampling often leaves a point only 20-40 cm after an
+        # apex. Using that point as the outgoing segment collapsed a requested
+        # 0.9 m steering lead to 0.16 m. Look ahead to a spatially meaningful
+        # support point, then omit intermediate points covered by the curve.
+        following_index = index + 1
+        minimum_support = max(0.75, float(radius_m))
+        while (
+            following_index < len(route) - 1
+            and float(
+                np.linalg.norm(route[following_index, :2] - apex[:2])
+            ) < minimum_support
+        ):
+            following_index += 1
+        following = route[following_index]
+        incoming = apex[:2] - previous[:2]
+        outgoing = following[:2] - apex[:2]
+        incoming_length = float(np.linalg.norm(incoming))
+        outgoing_length = float(np.linalg.norm(outgoing))
+        if incoming_length <= 0.05 or outgoing_length <= 0.05:
+            result.append(apex.copy())
+            index += 1
+            continue
+        incoming_unit = incoming / incoming_length
+        outgoing_unit = outgoing / outgoing_length
+        turn = abs(
+            wrap_angle(
+                math.atan2(float(outgoing[1]), float(outgoing[0]))
+                - math.atan2(float(incoming[1]), float(incoming[0]))
+            )
+        )
+        if turn < float(angle_threshold_rad):
+            result.append(apex.copy())
+            index += 1
+            continue
+        tangent = min(float(radius_m), 0.45 * incoming_length, 0.45 * outgoing_length)
+        entry = apex.copy()
+        exit_pose = apex.copy()
+        entry[:2] = apex[:2] - tangent * incoming_unit
+        exit_pose[:2] = apex[:2] + tangent * outgoing_unit
+        result.append(entry)
+        for sample_index in range(1, int(curve_samples) + 1):
+            t = sample_index / float(curve_samples + 1)
+            curve = apex.copy()
+            curve[:2] = (
+                (1.0 - t) ** 2 * entry[:2]
+                + 2.0 * (1.0 - t) * t * apex[:2]
+                + t**2 * exit_pose[:2]
+            )
+            result.append(curve)
+        result.append(exit_pose)
+        index = following_index
+    result.append(route[-1].copy())
+    return np.asarray(result, dtype=np.float64)
+
+
 @dataclass(frozen=True)
 class LatentRouteSegment:
     poses: np.ndarray
@@ -93,6 +196,24 @@ class LatentRouteSegment:
     end_index: int
     target_error_m: float
     map_dir: Path
+
+
+def combine_route_segments(
+    first: LatentRouteSegment, second: LatentRouteSegment
+) -> LatentRouteSegment:
+    """Join adjacent latent legs so a controller can shape their shared turn."""
+    if first.map_dir != second.map_dir:
+        raise ValueError("cannot combine latent segments from different maps")
+    if first.end_index != second.start_index:
+        raise ValueError("latent segments are not adjacent")
+    poses = np.concatenate([first.poses, second.poses[1:]], axis=0)
+    return LatentRouteSegment(
+        poses=poses,
+        start_index=first.start_index,
+        end_index=second.end_index,
+        target_error_m=second.target_error_m,
+        map_dir=first.map_dir,
+    )
 
 
 class LatentRoutePlanner:

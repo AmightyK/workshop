@@ -1,5 +1,13 @@
 frame_id: map
 
+trajectory_tracking:
+  controller: MPPI
+  hard_turn_threshold_rad: 0.75
+  corner_rounding_radius_m: 0.90
+  corner_curve_samples: 3
+  corner_slowdown_radius_m: 2.50
+  corner_speed_limit_mps: 0.40
+
 # Fixed coarse routes from the charging dock to a staging pose beside each
 # task cabinet. Nav2 keeps that path while LiDAR stops for crossing workers,
 # then resumes after they clear. The final slot is selected after staging.

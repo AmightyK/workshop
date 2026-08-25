@@ -88,6 +88,15 @@ online:
   position_variance_m2: 0.25
   yaw_variance_rad2: 0.12
 
+# Consumes the existing latent/debug/image topics in a separate process. Disk
+# I/O and future rollout evaluation therefore never extend the GPU inference
+# callback or the vehicle control loop.
+latent_prediction:
+  output_root: outputs/warehouse_latent_predictions
+  horizons: [1, 2, 3]
+  velocity_alpha: 0.65
+  writer_queue_size: 8
+
 warehouse_experiment:
   inventory: ../warehouse_agv_demo/config/inventory_locations.yaml
   goal_timeout_sec: 100.0

@@ -394,22 +394,24 @@
     <include><uri>model://random_worker</uri><name>random_worker_1</name><pose>-8 -10 0 0 0 0</pose></include>
     <include><uri>model://random_worker</uri><name>random_worker_2</name><pose>7 3.8 0 0 0 3.14159</pose></include>
     <include><uri>model://random_worker</uri><name>random_worker_3</name><pose>-4 17 0 0 0 0</pose></include>
-    <include><uri>model://random_worker</uri><name>random_worker_4</name><pose>7 -12 0 0 0 1.5708</pose></include>
-    <include><uri>model://random_worker</uri><name>random_worker_5</name><pose>-3.4 -5 0 0 0 0</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_4</name><pose>7 -13.2 0 0 0 1.5708</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_5</name><pose>-4.8 -4.2 0 0 0 0</pose></include>
 
     <!-- A few distinct task objects. Each box has exactly one solid color and
          a semantic model name used by the task planner / VQA layer. -->
     <model name="special_blue_box">
       <!-- Storage A, slot A01: embedded among cartons for VQA comparison. -->
       <pose>-6.25528 -0.876987 0.83 0 0 0</pose>
-      <!-- Kept stationary by zero gravity while waiting. The suction plugin
-           later moves it through a real fixed constraint, never set_pose. -->
+      <!-- Cartons retain their registered shelf pose with gravity disabled.
+           At Packing P, a per-model velocity controller lowers only the
+           released carton to its controlled floor pose. -->
       <static>false</static>
       <link name="box">
         <gravity>false</gravity>
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="special_red_box">
       <!-- Storage B, slot B02. -->
@@ -420,6 +422,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="special_green_box">
       <!-- Storage C, slot C03. -->
@@ -430,6 +433,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
 
     <!-- Distractors deliberately repeat colors between storage zones. VQA
@@ -442,6 +446,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="distractor_green_A03">
       <pose>-4.31528 -0.876987 0.83 0 0 0</pose>
@@ -451,6 +456,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="distractor_blue_B01">
       <pose>-6.25528 2.12097 0.83 0 0 0</pose>
@@ -460,6 +466,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="distractor_green_B03">
       <pose>-4.31528 2.12097 0.83 0 0 0</pose>
@@ -469,6 +476,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="green"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.03 0.75 0.18 1</ambient><diffuse>0.03 0.75 0.18 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="distractor_blue_C01">
       <pose>-6.25528 5.12108 0.83 0 0 0</pose>
@@ -478,6 +486,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="blue"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.02 0.12 0.95 1</ambient><diffuse>0.02 0.12 0.95 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
     <model name="distractor_red_C02">
       <pose>-5.03528 5.12108 0.83 0 0 0</pose>
@@ -487,6 +496,7 @@
         <inertial><mass>2.0</mass><inertia><ixx>0.0833</ixx><iyy>0.0833</iyy><izz>0.0833</izz></inertia></inertial>
         <visual name="red"><geometry><box><size>0.16 0.19 0.18</size></box></geometry><material><ambient>0.95 0.03 0.03 1</ambient><diffuse>0.95 0.03 0.03 1</diffuse></material></visual>
       </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
     </model>
   </world>
 </sdf>

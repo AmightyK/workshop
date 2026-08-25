@@ -8,6 +8,7 @@ import math
 import random
 import signal
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 
@@ -20,6 +21,7 @@ from gz.transport13 import Node
 WORLD = "world_demo"
 SET_POSES_SERVICE = f"/world/{WORLD}/set_pose_vector/blocking"
 ENABLE_TOPIC = "/warehouse/random_people/enabled"
+RESET_TOPIC = "/warehouse/random_people/reset"
 UPDATE_PERIOD = 1.0 / 30.0
 MAX_YAW_SPEED_RADPS = 2.4
 
@@ -35,6 +37,9 @@ class Walker:
     target: tuple[float, float] | None = None
     wait_until: float = 0.0
     endpoint_wait_s: float = 0.0
+    activation_distance_m: float | None = None
+    activated: bool = True
+    continuous: bool = False
 
     def choose_target(self, generator: random.Random) -> None:
         choices = [point for point in self.waypoints if point != self.target]
@@ -51,7 +56,14 @@ class RandomPeopleController:
         self.accept_pose_updates = True
         self.resume_poses: dict[str, tuple[float, float, float]] | None = None
         self.agv_xy: tuple[float, float] | None = None
+        self.reset_requested = threading.Event()
+        self.last_reset_request = -math.inf
         self.node.subscribe(Boolean, ENABLE_TOPIC, self.on_enable)
+        self.node.subscribe(Boolean, RESET_TOPIC, self.on_reset)
+        # Subscribe to the compact per-model pose topics.  The full world
+        # Pose_V contains hundreds of links and can build a callback backlog
+        # while V-JEPA, Nav2 and Gazebo GUI are all active.  A stale yaw leaves
+        # a worker rotating forever even though fresh cmd_vel is published.
         self.node.subscribe(Pose, "/model/warehouse_agv/pose", self.on_agv_pose)
         self.walkers = [
             Walker(
@@ -94,20 +106,34 @@ class RandomPeopleController:
                 ((7.0, -18.0), (7.0, -2.0)),
                 0.62 * speed_scale,
                 7.0,
-                -12.0,
+                -13.2,
                 yaw=math.pi / 2.0,
                 endpoint_wait_s=1.5,
+                # Start the crossing while both actors are still far apart.
+                # The worker visibly walks in from the aisle instead of
+                # appearing to react only when the AGV reaches the camera.
+                activation_distance_m=7.2,
+                activated=False,
             ),
             Walker(
                 "random_worker_5",
-                ((-9.0, -5.0), (6.0, -5.0)),
+                # A long open-floor patrol with both turnarounds well clear of
+                # the AGV lane and warehouse collision geometry.
+                ((-4.8, -4.2), (1.0, -4.2)),
                 0.56 * speed_scale,
-                -3.4,
-                -5.0,
-                endpoint_wait_s=1.5,
+                -4.8,
+                -4.2,
+                # Pause off the AGV lane before walking back. An immediate
+                # reversal made the worker re-enter while the vehicle was
+                # resuming from the first safe stop.
+                endpoint_wait_s=4.0,
             ),
         ]
         self.walkers_by_name = {walker.name: walker for walker in self.walkers}
+        self.initial_poses = {
+            walker.name: (walker.x, walker.y, walker.yaw)
+            for walker in self.walkers
+        }
         self.velocity_publishers = {}
         for walker in self.walkers:
             if walker.endpoint_wait_s > 0.0:
@@ -128,6 +154,14 @@ class RandomPeopleController:
 
     def on_enable(self, message: Boolean) -> None:
         self.enabled = message.data
+
+    def on_reset(self, message: Boolean) -> None:
+        now = time.monotonic()
+        if message.data and now - self.last_reset_request >= 0.5:
+            # Gazebo Transport callbacks may run outside the controller loop.
+            # Defer pose and route mutation to that single owning thread.
+            self.last_reset_request = now
+            self.reset_requested.set()
 
     def on_agv_pose(self, pose: Pose) -> None:
         # The model pose topic also carries poses for every nested AGV link.
@@ -239,29 +273,75 @@ class RandomPeopleController:
         self.resume_poses = None
         self.accept_pose_updates = True
 
+    def reset_people(self) -> None:
+        """Return every worker to a fresh route at the start of a mission."""
+        self.accept_pose_updates = False
+        self.stop_people()
+        commands = [
+            (name, x, y, yaw)
+            for name, (x, y, yaw) in self.initial_poses.items()
+        ]
+        if not self.set_poses_once(commands):
+            print("WARNING: failed to reset people for new mission", flush=True)
+        for walker in self.walkers:
+            walker.x, walker.y, walker.yaw = self.initial_poses[walker.name]
+            walker.target = None
+            walker.wait_until = 0.0
+            walker.activated = walker.activation_distance_m is None
+            if walker.endpoint_wait_s > 0.0:
+                walker.target = walker.waypoints[-1]
+            else:
+                walker.choose_target(self.generator)
+        self.resume_poses = None
+        self.accept_pose_updates = True
+        print("Random people reset for new mission", flush=True)
+
     def update(self, now: float) -> None:
         for walker in self.walkers:
+            if not walker.activated:
+                if self.agv_xy is None or walker.activation_distance_m is None:
+                    self.publish_velocity(walker, 0.0, 0.0)
+                    continue
+                agv_distance = math.hypot(
+                    walker.x - self.agv_xy[0], walker.y - self.agv_xy[1]
+                )
+                if agv_distance > walker.activation_distance_m:
+                    self.publish_velocity(walker, 0.0, 0.0)
+                    continue
+                walker.activated = True
+                print(
+                    f"{walker.name} activated at AGV distance "
+                    f"{agv_distance:.2f} m",
+                    flush=True,
+                )
             if walker.target is None:
                 walker.choose_target(self.generator)
             target_x, target_y = walker.target
             dx, dy = target_x - walker.x, target_y - walker.y
             distance = math.hypot(dx, dy)
             if distance < 0.10:
-                if walker.wait_until == 0.0:
-                    dwell = (
-                        walker.endpoint_wait_s
-                        if walker.endpoint_wait_s > 0.0
-                        else self.generator.uniform(0.4, 1.8)
-                    )
-                    walker.wait_until = now + dwell
-                if now < walker.wait_until:
-                    self.publish_velocity(walker, 0.0, 0.0)
-                    continue
-                walker.wait_until = 0.0
-                walker.choose_target(self.generator)
-                target_x, target_y = walker.target
-                dx, dy = target_x - walker.x, target_y - walker.y
-                distance = math.hypot(dx, dy)
+                if walker.continuous:
+                    walker.choose_target(self.generator)
+                    target_x, target_y = walker.target
+                    dx, dy = target_x - walker.x, target_y - walker.y
+                    distance = math.hypot(dx, dy)
+                    walker.wait_until = 0.0
+                else:
+                    if walker.wait_until == 0.0:
+                        dwell = (
+                            walker.endpoint_wait_s
+                            if walker.endpoint_wait_s > 0.0
+                            else self.generator.uniform(0.4, 1.8)
+                        )
+                        walker.wait_until = now + dwell
+                    if now < walker.wait_until:
+                        self.publish_velocity(walker, 0.0, 0.0)
+                        continue
+                    walker.wait_until = 0.0
+                    walker.choose_target(self.generator)
+                    target_x, target_y = walker.target
+                    dx, dy = target_x - walker.x, target_y - walker.y
+                    distance = math.hypot(dx, dy)
 
             heading_error = self.shortest_angle(walker.yaw, math.atan2(dy, dx))
             angular = max(
@@ -288,11 +368,14 @@ class RandomPeopleController:
         self.stop_people()
         print(
             f"Random people active: {len(self.walkers)} workers, "
-            f"control topic {ENABLE_TOPIC}",
+            f"control topics {ENABLE_TOPIC}, {RESET_TOPIC}",
             flush=True,
         )
         while self.running:
             started = time.monotonic()
+            if self.reset_requested.is_set():
+                self.reset_requested.clear()
+                self.reset_people()
             if self.enabled != self.last_enabled:
                 if self.enabled:
                     self.restore_people()

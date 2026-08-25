@@ -389,8 +389,17 @@
     <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>distractor_red_C02</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/distractor_red_C02/detach</detach_topic><attach_topic>/warehouse_agv/gripper/distractor_red_C02/attach</attach_topic><output_topic>/warehouse_agv/gripper/distractor_red_C02/attached</output_topic></plugin>
     <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint"><parent_link>fork_reach</parent_link><child_model>special_green_box</child_model><child_link>box</child_link><detach_topic>/warehouse_agv/gripper/special_green_box/detach</detach_topic><attach_topic>/warehouse_agv/gripper/special_green_box/attach</attach_topic><output_topic>/warehouse_agv/gripper/special_green_box/attached</output_topic></plugin>
     <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
-      <publish_link_pose>true</publish_link_pose><publish_sensor_pose>true</publish_sensor_pose>
-      <publish_collision_pose>false</publish_collision_pose><publish_visual_pose>false</publish_visual_pose>
+      <!-- The safety and worker controllers consume the compact scalar Pose
+           topic. Keep this contract explicit: PosePublisher otherwise uses a
+           Pose_V payload, so their Pose callbacks never receive the AGV pose
+           and the fail-safe velocity gate remains permanently closed. -->
+      <publish_model_pose>true</publish_model_pose>
+      <publish_link_pose>true</publish_link_pose>
+      <publish_sensor_pose>true</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <use_pose_vector_msg>false</use_pose_vector_msg>
+      <update_frequency>30</update_frequency>
     </plugin>
   </model>
 </sdf>

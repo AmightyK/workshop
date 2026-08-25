@@ -84,6 +84,11 @@ pipeline:
     position_tolerance_m: 0.008
     motion_timeout_s: 8.0
     attach_timeout_s: 3.0
+    # In addition to the camera controller's own centering passes, retry the
+    # full align/contact/attachment sequence after a failed physical gate.
+    max_retries: 2
+    retry_retreat_m: 0.25
+    minimum_detection_confidence: 0.72
     # An inverted-L slider moves below the flat tray; only the compact T-head
     # and its shallow rubber lips rise above the cargo surface.
     expected_box_forward_m: 0.345
@@ -98,6 +103,15 @@ pipeline:
     # carton, reverse into the clear aisle before handing control back to Nav2.
     post_pick_retreat_m: 0.72
     post_pick_retreat_speed_mps: 0.18
+    # Hard geometry gate after retract: the complete carton footprint must be
+    # inside the 0.394625 x 0.30625 m tray before the lift is lowered.
+    tray_size_x_m: 0.394625
+    tray_size_y_m: 0.30625
+    payload_size_x_m: 0.16
+    payload_size_y_m: 0.19
+    payload_size_z_m: 0.18
+    tray_fit_margin_m: 0.005
+    tray_height_tolerance_m: 0.035
     required_gates:
       - target_identity_confirmed
       - bbox_centered

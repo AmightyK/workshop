@@ -24,9 +24,12 @@
       </visual>
 
       <!-- A simple proxy remains separate from the detailed render mesh. It
-           gives stable LiDAR returns without expensive mesh collision. -->
+           gives stable LiDAR returns without expensive mesh collision. Keep
+           its base slightly above the floor: these workers have gravity
+           disabled, and exact floor contact can hold low walking commands in
+           static friction until an unrealistically large velocity is sent. -->
       <collision name="person_collision">
-        <pose>0 0 0.76 0 0 0</pose>
+        <pose>0 0 0.81 0 0 0</pose>
         <geometry>
           <cylinder><radius>0.23</radius><length>1.52</length></cylinder>
         </geometry>

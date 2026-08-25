@@ -12,7 +12,7 @@
     <frame name="pickup_C01"><pose>-6.25528 4.06 0 0 0 1.5708</pose></frame>
     <frame name="pickup_C02"><pose>-5.03528 4.06 0 0 0 1.5708</pose></frame>
     <frame name="pickup_C03"><pose>-4.31528 4.06 0 0 0 1.5708</pose></frame>
-    <frame name="dropoff_PACK01"><pose>10.80 -9.00 0 0 0 -1.5708</pose></frame>
+    <frame name="dropoff_PACK01"><pose>10.80 -10.60 0 0 0 -1.5708</pose></frame>
 
     <!-- Clean white rack plates. The black glyph geometry is repeated and
          mirrored on the rear face, so codes remain readable from both aisles. -->

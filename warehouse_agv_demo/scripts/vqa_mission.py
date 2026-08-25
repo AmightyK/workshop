@@ -29,6 +29,7 @@ from gz.msgs10.empty_pb2 import Empty
 from gz.msgs10.pose_pb2 import Pose
 from gz.msgs10.pose_v_pb2 import Pose_V
 from gz.msgs10.stringmsg_pb2 import StringMsg
+from gz.msgs10.twist_pb2 import Twist as GazeboTwist
 from gz.transport13 import Node as GazeboNode
 from nav_msgs.msg import Odometry
 from nav2_msgs.action import NavigateToPose
@@ -36,9 +37,10 @@ from nav2_msgs.srv import Toggle
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from sensor_msgs.msg import Image, LaserScan
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 
 from vqa_oracle import answer as answer_vqa
+from grasp_retry import grasp_attempts
 
 
 CONFIG = Path(__file__).resolve().parents[1] / "config" / "semantic_tasks.yaml"
@@ -58,6 +60,45 @@ SCISSOR_THETA_RAISED = 1.10
 SCISSOR_LIFT_MAX = SCISSOR_STAGE_COUNT * SCISSOR_BAR_LENGTH * (
     math.sin(SCISSOR_THETA_RAISED) - math.sin(SCISSOR_THETA_FOLDED)
 )
+
+# The payload is intentionally smaller than the flat fork carriage.  Keep the
+# dimensions here as a hard physical safety contract: a successful
+# DetachableJoint state alone does not prove that the carton is actually
+# sitting on the tray (it can still be attached at a bad lateral offset).
+TRAY_SIZE_X_M = 0.394625
+TRAY_SIZE_Y_M = 0.30625
+TRAY_PLATFORM_THICKNESS_M = 0.025
+PAYLOAD_SIZE_X_M = 0.16
+PAYLOAD_SIZE_Y_M = 0.19
+PAYLOAD_SIZE_Z_M = 0.18
+TRAY_FIT_MARGIN_M = 0.005
+PACKING_SURFACE_Z_M = 0.055
+
+
+def release_approach_pose(
+    drop_center: list[float],
+    drop_yaw: float,
+    payload_forward_m: float,
+    payload_lateral_m: float,
+    slide_extension_m: float,
+) -> list[float]:
+    """Return the AGV pose that puts the carton centre on ``drop_center``.
+
+    The fork moves forward while the carton is still attached.  Navigating the
+    AGV to the painted P centre and then extending the fork therefore releases
+    the carton one fork-length away from the centre.  This pose compensates for
+    that extension and for the measured residual offset of the carton on the
+    tray; it keeps the correction fully in the normal Nav2 motion pipeline.
+    """
+    release_forward = float(payload_forward_m) + float(slide_extension_m)
+    release_lateral = float(payload_lateral_m)
+    cos_yaw = math.cos(float(drop_yaw))
+    sin_yaw = math.sin(float(drop_yaw))
+    return [
+        float(drop_center[0]) - cos_yaw * release_forward + sin_yaw * release_lateral,
+        float(drop_center[1]) - sin_yaw * release_forward - cos_yaw * release_lateral,
+        float(drop_yaw),
+    ]
 
 
 def print_target_card(answer: dict) -> None:
@@ -86,6 +127,7 @@ class GazeboPayload:
         self.attachment_state: dict[str, bool] = {}
         self.attach_publishers = {}
         self.detach_publishers = {}
+        self.descent_publishers = {}
         self.node.subscribe(Pose_V, "/world/world_demo/pose/info", self._on_poses)
 
     def _on_poses(self, message: Pose_V) -> None:
@@ -102,16 +144,32 @@ class GazeboPayload:
             time.sleep(0.05)
         raise RuntimeError(f"Gazebo pose feedback missing: {models}")
 
-    def verify_slot(self, model: str, expected: list[float], tolerance: float = 0.08) -> float:
+    def verify_slot(
+        self,
+        model: str,
+        expected: list[float],
+        planar_tolerance: float = 0.08,
+        height_tolerance: float = 0.05,
+    ) -> float:
         with self.lock:
             pose = self.observed[model]
+        expected_x, expected_y, expected_z = map(float, expected)
+        planar_error = math.hypot(
+            pose.position.x - expected_x,
+            pose.position.y - expected_y,
+        )
+        height_error = abs(pose.position.z - expected_z)
         error = math.dist(
             (pose.position.x, pose.position.y, pose.position.z),
-            tuple(map(float, expected)),
+            (expected_x, expected_y, expected_z),
         )
-        if error > tolerance:
+        # A carton may settle a few centimetres forward on the shelf. Keep a
+        # separate tight height gate so this never accepts a carton that fell
+        # to the floor, while camera servo still owns the live XY alignment.
+        if planar_error > planar_tolerance or height_error > height_tolerance:
             raise RuntimeError(
-                f"VQA verification failed: {model} is {error:.2f} m from its registered slot"
+                f"VQA verification failed: {model} shelf error "
+                f"xy={planar_error:.2f} m, z={height_error:.2f} m"
             )
         return error
 
@@ -177,13 +235,19 @@ class GazeboPayload:
         return max(0.0, pose.position.x - retracted_x)
 
     def verify_payload_on_agv(self, model: str, max_distance_m: float = 0.85) -> float:
-        """Reject resume/release when the selected carton is not on this AGV."""
+        """Reject resume/release when the selected carton is not on this AGV.
+
+        This is deliberately a planar check.  The carton is carried above the
+        AGV, so including the vertical tray height made a correctly carried
+        box look ``0.83 m`` away from a robot whose model origin is on the
+        floor.  The footprint gate below performs the separate height check.
+        """
         with self.lock:
             robot = self.observed["warehouse_agv"]
             box = self.observed[model]
-        distance = math.dist(
-            (robot.position.x, robot.position.y, robot.position.z),
-            (box.position.x, box.position.y, box.position.z),
+        distance = math.hypot(
+            box.position.x - robot.position.x,
+            box.position.y - robot.position.y,
         )
         if distance > max_distance_m:
             raise RuntimeError(
@@ -191,6 +255,108 @@ class GazeboPayload:
                 "select the storage/color of the payload actually attached"
             )
         return distance
+
+    @staticmethod
+    def _yaw_from_pose(pose: Pose) -> float:
+        q = pose.orientation
+        return math.atan2(
+            2.0 * (q.w * q.z + q.x * q.y),
+            1.0 - 2.0 * (q.y * q.y + q.z * q.z),
+        )
+
+    def verify_payload_on_tray(
+        self,
+        model: str,
+        tray_size_x: float = TRAY_SIZE_X_M,
+        tray_size_y: float = TRAY_SIZE_Y_M,
+        payload_size_x: float = PAYLOAD_SIZE_X_M,
+        payload_size_y: float = PAYLOAD_SIZE_Y_M,
+        payload_size_z: float = PAYLOAD_SIZE_Z_M,
+        margin: float = TRAY_FIT_MARGIN_M,
+        height_tolerance: float = 0.035,
+    ) -> dict[str, float]:
+        """Require the whole carton footprint to be inside the raised tray.
+
+        Gazebo's detachable joint reports ``attached`` as soon as a fixed
+        joint exists.  That signal does not constrain the carton to the tray
+        outline, and was the reason a half-overhanging box could be accepted.
+        We transform all four payload corners into the AGV/tray frame and
+        reject the mission before it drives away if any corner is outside.
+        """
+        with self.lock:
+            robot = self.observed["warehouse_agv"]
+            box = self.observed[model]
+            fork = self.observed.get("fork_carriage")
+
+        robot_yaw = self._yaw_from_pose(robot)
+        cos_robot = math.cos(robot_yaw)
+        sin_robot = math.sin(robot_yaw)
+
+        # PosePublisher exposes link poses relative to the AGV model.  The
+        # fork carriage is centred today, but using its measured pose keeps
+        # this gate correct if the tray is moved later.
+        fork_x = float(fork.position.x) if fork is not None else 0.0
+        fork_y = float(fork.position.y) if fork is not None else 0.0
+        tray_center_x = robot.position.x + cos_robot * fork_x - sin_robot * fork_y
+        tray_center_y = robot.position.y + sin_robot * fork_x + cos_robot * fork_y
+
+        dx_world = box.position.x - tray_center_x
+        dy_world = box.position.y - tray_center_y
+        center_x = cos_robot * dx_world + sin_robot * dy_world
+        center_y = -sin_robot * dx_world + cos_robot * dy_world
+        box_yaw = self._yaw_from_pose(box)
+        relative_yaw = box_yaw - robot_yaw
+        cos_box = math.cos(relative_yaw)
+        sin_box = math.sin(relative_yaw)
+
+        corners = []
+        for sx in (-0.5 * payload_size_x, 0.5 * payload_size_x):
+            for sy in (-0.5 * payload_size_y, 0.5 * payload_size_y):
+                corners.append(
+                    (
+                        center_x + cos_box * sx - sin_box * sy,
+                        center_y + sin_box * sx + cos_box * sy,
+                    )
+                )
+        min_x = min(corner[0] for corner in corners)
+        max_x = max(corner[0] for corner in corners)
+        min_y = min(corner[1] for corner in corners)
+        max_y = max(corner[1] for corner in corners)
+        tray_half_x = 0.5 * tray_size_x
+        tray_half_y = 0.5 * tray_size_y
+        fit = (
+            min_x >= -tray_half_x + margin
+            and max_x <= tray_half_x - margin
+            and min_y >= -tray_half_y + margin
+            and max_y <= tray_half_y - margin
+        )
+
+        # The tray link pose is relative to the AGV model.  The platform top
+        # plus half the carton height is the expected centre after LOWER.
+        tray_z = float(fork.position.z) if fork is not None else 0.363575
+        expected_z = (
+            float(robot.position.z)
+            + tray_z
+            + 0.5 * TRAY_PLATFORM_THICKNESS_M
+            + 0.5 * payload_size_z
+        )
+        height_error = abs(float(box.position.z) - expected_z)
+        if not fit or height_error > height_tolerance:
+            raise RuntimeError(
+                f"Payload tray gate failed: {model} footprint "
+                f"x=[{min_x:+.3f},{max_x:+.3f}] y=[{min_y:+.3f},{max_y:+.3f}] "
+                f"tray=±({tray_half_x - margin:.3f},{tray_half_y - margin:.3f}), "
+                f"height_error={height_error:.3f} m"
+            )
+        return {
+            "center_forward_m": center_x,
+            "center_lateral_m": center_y,
+            "min_x_m": min_x,
+            "max_x_m": max_x,
+            "min_y_m": min_y,
+            "max_y_m": max_y,
+            "height_error_m": height_error,
+        }
 
     def robot_xy_distance_to(self, pose: list[float]) -> float:
         with self.lock:
@@ -208,6 +374,9 @@ class GazeboPayload:
         self.detach_publishers[model] = self.node.advertise(
             f"{namespace}/detach", Empty
         )
+        self.descent_publishers[model] = self.node.advertise(
+            f"/model/{model}/cmd_vel", GazeboTwist
+        )
 
         def on_state(message: StringMsg) -> None:
             self.attachment_state[model] = message.data == "attached"
@@ -215,10 +384,21 @@ class GazeboPayload:
         self.node.subscribe(StringMsg, f"{namespace}/attached", on_state)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if self.attach_publishers[model].has_connections():
+            if (
+                self.attach_publishers[model].has_connections()
+                and self.descent_publishers[model].has_connections()
+            ):
+                self.stop_payload_motion(model)
                 return
             time.sleep(0.05)
         raise RuntimeError(f"DetachableJoint attach topic unavailable for {model}")
+
+    def stop_payload_motion(self, model: str) -> None:
+        """Cancel residual shelf drift without changing the carton pose."""
+        stop = GazeboTwist()
+        for _ in range(5):
+            self.descent_publishers[model].publish(stop)
+            time.sleep(0.01)
 
     def attach(self, model: str, timeout: float = 3.0) -> None:
         if model not in self.attach_publishers:
@@ -242,6 +422,81 @@ class GazeboPayload:
             time.sleep(0.05)
         raise RuntimeError(f"Physical suction joint did not detach {model}")
 
+    def wait_for_drop(
+        self,
+        model: str,
+        center: list[float],
+        half_extents: list[float],
+        target_center_z: float = 0.145,
+        height_tolerance: float = 0.018,
+        timeout: float = 4.0,
+    ) -> tuple[float, float, float]:
+        """Require the released carton to settle on the P platform."""
+        center_x, center_y = map(float, center)
+        half_x, half_y = map(float, half_extents)
+        deadline = time.monotonic() + timeout
+        stable_samples = 0
+        previous: tuple[float, float, float] | None = None
+        latest = (math.nan, math.nan, math.nan)
+        while time.monotonic() < deadline:
+            with self.lock:
+                pose = self.observed[model]
+                latest = (
+                    float(pose.position.x),
+                    float(pose.position.y),
+                    float(pose.position.z),
+                )
+            x, y, z = latest
+            inside = (
+                abs(x - center_x) <= half_x
+                and abs(y - center_y) <= half_y
+            )
+            # Packing P has a 55 mm top surface.  The 180 mm carton therefore
+            # rests with its centre at z=0.145 m, rather than at floor height
+            # z=0.09 m (which made it intersect the platform and look as if it
+            # were floating or sinking).
+            grounded = abs(z - float(target_center_z)) <= height_tolerance
+            stable = previous is not None and math.dist(latest, previous) <= 0.004
+            stable_samples = stable_samples + 1 if inside and grounded and stable else 0
+            if stable_samples >= 5:
+                self.stop_payload_motion(model)
+                return latest
+            previous = latest
+            time.sleep(0.05)
+        raise RuntimeError(
+            f"Drop verification failed: {model} did not settle inside Packing P; "
+            f"last pose=({latest[0]:.2f}, {latest[1]:.2f}, {latest[2]:.2f})"
+        )
+
+    def lower_released_payload(
+        self,
+        model: str,
+        target_center_z: float = 0.145,
+        speed_mps: float = 0.20,
+        timeout: float = 4.0,
+    ) -> None:
+        """Move a detached, zero-gravity carton onto the P platform."""
+        publisher = self.descent_publishers[model]
+        deadline = time.monotonic() + timeout
+        command = GazeboTwist()
+        command.linear.z = -abs(speed_mps)
+        try:
+            while time.monotonic() < deadline:
+                with self.lock:
+                    z = float(self.observed[model].position.z)
+                if z <= target_center_z + 0.005:
+                    return
+                publisher.publish(command)
+                time.sleep(0.02)
+            raise RuntimeError(
+                f"Controlled drop timed out: {model} remained above floor"
+            )
+        finally:
+            stop = GazeboTwist()
+            for _ in range(5):
+                publisher.publish(stop)
+                time.sleep(0.01)
+
 
 class VqaNav2Mission(Node):
     def __init__(self, pipeline: dict) -> None:
@@ -250,6 +505,14 @@ class VqaNav2Mission(Node):
         self.nav_client = ActionClient(self, NavigateToPose, "/navigate_to_pose")
         self.collision_toggle = self.create_client(Toggle, "/collision_monitor/toggle")
         self.goal_preview = self.create_publisher(PoseStamped, "/semantic_goal", 1)
+        self.mission_state = self.create_publisher(
+            String, "/warehouse/mission_state", 10
+        )
+        self.current_state_message: String | None = None
+        # Short manipulation phases can begin before DDS discovery finishes
+        # and end between V-JEPA inference samples. Republish the active phase
+        # while manipulation callbacks are being spun so evidence is not lost.
+        self.create_timer(0.5, self._republish_state)
         self.base_velocity = self.create_publisher(Twist, "/cmd_vel", 10)
         self.scissor_angle = self.create_publisher(
             Float64, "/gripper/scissor_angle_position", 10
@@ -286,6 +549,18 @@ class VqaNav2Mission(Node):
         self.create_subscription(LaserScan, "/scan", self._scan_callback, 20)
         self.last_feedback = 0.0
         self.lift_position = 0.0
+
+    def publish_state(self, state: str, **details: object) -> None:
+        payload = {"state": state, "timestamp": time.time(), **details}
+        self.current_state_message = String(
+            data=json.dumps(payload, sort_keys=True)
+        )
+        self.mission_state.publish(self.current_state_message)
+        print(f"[MISSION_STATE] {state}")
+
+    def _republish_state(self) -> None:
+        if self.current_state_message is not None:
+            self.mission_state.publish(self.current_state_message)
 
     def _odom_callback(self, message: Odometry) -> None:
         position = message.pose.pose.position
@@ -927,14 +1202,24 @@ def main() -> None:
     print_target_card(answer)
     item = config["objects"][answer["object"]]
     packing = config["stations"]["packing_station"]["slots"]["PACK01"]
+    drop_center = list(packing["drop_center"])
+    drop_half_extents = list(
+        packing.get("drop_center_tolerance", packing["drop_half_extents"])
+    )
+    drop_surface_z = float(packing.get("drop_surface_z", PACKING_SURFACE_Z_M))
     payload = GazeboPayload()
-    payload.wait_for("warehouse_agv", answer["model"], "fork_reach")
+    payload.wait_for(
+        "warehouse_agv", answer["model"], "fork_reach", "fork_carriage"
+    )
     payload.configure_grasp(answer["model"])
 
     rclpy.init()
     mission = VqaNav2Mission(pipeline)
     try:
         print("[STATE] PARSE_TASK -> RESOLVE_SEMANTIC_TARGET")
+        mission.publish_state(
+            "PARSE_TASK", storage=answer["storage"], slot=answer["slot"]
+        )
         print("[VQA] target resolved; Nav2 owns coarse aisle navigation")
         mission.set_collision_monitor(
             bool(pipeline["coarse_navigation"]["use_collision_monitor"])
@@ -950,8 +1235,12 @@ def main() -> None:
         slide_timeout = float(grasp["motion_timeout_s"])
         retracted_x = float(grasp["retracted_link_x_m"])
         extension_feedback = lambda: payload.reach_extension(retracted_x)
+        drop_center_z = drop_surface_z + 0.5 * float(
+            grasp.get("payload_size_z_m", PAYLOAD_SIZE_Z_M)
+        )
 
         if args.prepare_return_only:
+            mission.publish_state("RETURN_TO_DROPOFF", payload=answer["model"])
             payload_distance = payload.verify_payload_on_agv(answer["model"])
             mission.move_suction_slide_to(
                 -slide_speed, 0.0, extension_feedback,
@@ -982,6 +1271,7 @@ def main() -> None:
             return
 
         if args.release_only:
+            mission.publish_state("PLACE_PACKAGE", payload=answer["model"])
             payload_distance = payload.verify_payload_on_agv(answer["model"])
             print(
                 "[LATENT_ROUTE] loaded AGV reached Packing Station through "
@@ -992,6 +1282,39 @@ def main() -> None:
                 f"(relative distance={payload_distance:.2f} m)"
             )
             print("[STATE] RETURN_CORRIDOR -> RELEASE_PAYLOAD")
+            drop_tray_fit = payload.verify_payload_on_tray(
+                answer["model"],
+                tray_size_x=float(grasp.get("tray_size_x_m", TRAY_SIZE_X_M)),
+                tray_size_y=float(grasp.get("tray_size_y_m", TRAY_SIZE_Y_M)),
+                payload_size_x=float(
+                    grasp.get("payload_size_x_m", PAYLOAD_SIZE_X_M)
+                ),
+                payload_size_y=float(
+                    grasp.get("payload_size_y_m", PAYLOAD_SIZE_Y_M)
+                ),
+                payload_size_z=float(
+                    grasp.get("payload_size_z_m", PAYLOAD_SIZE_Z_M)
+                ),
+                margin=float(grasp.get("tray_fit_margin_m", TRAY_FIT_MARGIN_M)),
+                height_tolerance=float(
+                    grasp.get("tray_height_tolerance_m", 0.035)
+                ),
+            )
+            drop_pose = release_approach_pose(
+                drop_center,
+                float(packing["approach"][2]),
+                drop_tray_fit["center_forward_m"],
+                drop_tray_fit["center_lateral_m"],
+                slide_max,
+            )
+            print(
+                "[DROP_ALIGN] release-only Nav2 correction "
+                f"goal=({drop_pose[0]:.2f}, {drop_pose[1]:.2f})"
+            )
+            mission.navigate(
+                answer["destination_anchor"], drop_pose, args.wait
+            )
+            print("[DROP_ALIGN] AGV is inside P; extending fork for release")
             mission.move_suction_slide_to(
                 -slide_speed, 0.0, extension_feedback,
                 slide_tolerance, slide_timeout,
@@ -1002,12 +1325,31 @@ def main() -> None:
                 slide_tolerance, slide_timeout,
             )
             payload.detach(answer["model"], float(grasp["attach_timeout_s"]))
+            # The fork can leave a tiny inherited velocity at the instant the
+            # fixed joint opens.  Clear all six velocity components before the
+            # controlled vertical placement so the carton cannot drift away
+            # from the computed P centre.
+            payload.stop_payload_motion(answer["model"])
             mission.move_suction_slide_to(
                 -slide_speed, 0.0, extension_feedback,
                 slide_tolerance, slide_timeout,
             )
+            payload.lower_released_payload(
+                answer["model"], target_center_z=drop_center_z
+            )
+            landed = payload.wait_for_drop(
+                answer["model"],
+                drop_center,
+                drop_half_extents,
+                target_center_z=drop_center_z,
+            )
+            print(
+                f"[DROP_GATE] carton settled inside P at "
+                f"({landed[0]:.2f}, {landed[1]:.2f}, z={landed[2]:.2f})"
+            )
             print(f"[DROP] {answer['model']} delivered to Packing Station")
             print("[MISSION] COMPLETE on recorded outbound + return latent route")
+            mission.publish_state("MISSION_COMPLETE", payload=answer["model"])
             return
 
         print("[STATE] RESOLVE_SEMANTIC_TARGET -> PREPARE_HARDWARE")
@@ -1017,6 +1359,9 @@ def main() -> None:
         )
         mission.move_lift_to(0.0, float(lift["duration_s"]))
         print("[STATE] RESOLVE_SEMANTIC_TARGET -> NAVIGATE_TO_STORAGE")
+        mission.publish_state(
+            "NAVIGATE_TO_SHELF", storage=answer["storage"], slot=answer["slot"]
+        )
         if args.skip_navigation:
             print(
                 "[LATENT_ROUTE] pickup pose reached by recorded mapping corridor; "
@@ -1032,52 +1377,115 @@ def main() -> None:
         # Raise the recessed platform to the calibrated shelf centerline, then
         # hand velocity ownership from Nav2 to the camera controller.
         print("[STATE] NAVIGATE_TO_STORAGE -> ALIGN_LIFT")
+        mission.publish_state("RAISE_LIFT", slot=answer["slot"])
         lift_target = float(lift["nominal_position_m"])
         lift_duration = float(lift["duration_s"])
         print(f"[LIFT] raising to {lift_target:.3f} m in {lift_duration:.2f} s")
         mission.move_lift_to(lift_target, lift_duration)
-        error = payload.verify_slot(answer["model"], item["shelf_pose"])
-        print("[STATE] ALIGN_LIFT -> VISUAL_SERVO")
-        detection = mission.dock_square_and_center(
-            item["color"],
-            args.camera_evidence,
-            rack_yaw,
-            payload.robot_yaw,
-            yaw_tolerance,
+        payload.stop_payload_motion(answer["model"])
+        slot_error = payload.verify_slot(answer["model"], item["shelf_pose"])
+        max_grasp_retries = int(grasp.get("max_retries", 2))
+        minimum_confidence = float(
+            grasp.get("minimum_detection_confidence", 0.72)
         )
-        print(
-            f"[VQA] /camera detected {detection['color']} in {answer['slot']} "
-            f"bbox={detection['bbox']} confidence={detection['confidence']:.2f}; "
-            f"registered pose error={error:.3f} m"
-        )
-        print(f"[VQA] annotated input saved to {detection['image']}")
+        retry_retreat = float(grasp.get("retry_retreat_m", 0.25))
+        for grasp_attempt in grasp_attempts(max_grasp_retries):
+            try:
+                print(
+                    "[STATE] ALIGN_LIFT -> VISUAL_SERVO "
+                    f"attempt {grasp_attempt}/{max_grasp_retries + 1}"
+                )
+                mission.publish_state(
+                    "ALIGN_PACKAGE",
+                    color=item["color"],
+                    slot=answer["slot"],
+                    attempt=grasp_attempt,
+                )
+                detection = mission.dock_square_and_center(
+                    item["color"],
+                    args.camera_evidence,
+                    rack_yaw,
+                    payload.robot_yaw,
+                    yaw_tolerance,
+                )
+                if float(detection["confidence"]) < minimum_confidence:
+                    raise RuntimeError(
+                        "Detection confidence gate failed: "
+                        f"{detection['confidence']:.2f} < {minimum_confidence:.2f}"
+                    )
+                print(
+                    f"[VQA] /camera detected {detection['color']} in {answer['slot']} "
+                    f"bbox={detection['bbox']} confidence={detection['confidence']:.2f}; "
+                    f"registered pose error={slot_error:.3f} m"
+                )
+                print(f"[VQA] annotated input saved to {detection['image']}")
+                print(
+                    "[ALIGN] detection confidence and position consistency "
+                    "passed"
+                )
 
-        print("[ALIGN] chassis, box center and both suction cups passed final gates")
+                mission.publish_state(
+                    "GRASP_PACKAGE",
+                    payload=answer["model"],
+                    attempt=grasp_attempt,
+                )
+                extended = mission.move_suction_slide_to(
+                    slide_speed, slide_max, extension_feedback,
+                    slide_tolerance, slide_timeout,
+                )
+                print(f"[SLIDE_GATE] extended={extended:.3f} m")
+                contact = payload.verify_grasp_pose(
+                    answer["model"],
+                    float(grasp["expected_box_forward_m"]),
+                    float(grasp["forward_tolerance_m"]),
+                    float(grasp["lateral_tolerance_m"]),
+                    float(grasp["height_tolerance_m"]),
+                    rack_yaw,
+                    yaw_tolerance,
+                )
+                print(
+                    "[CONTACT_GATE] "
+                    f"forward={contact['forward_m']:.3f} m "
+                    f"lateral={contact['lateral_m']:+.3f} m "
+                    f"yaw_error={math.degrees(contact['yaw_error_rad']):+.2f} deg"
+                )
+                payload.attach(answer["model"], float(grasp["attach_timeout_s"]))
+                mission.publish_state(
+                    "VERIFY_GRASP",
+                    payload=answer["model"],
+                    attempt=grasp_attempt,
+                )
+                if not payload.attachment_state.get(answer["model"], False):
+                    raise RuntimeError("gripper state did not confirm attachment")
+                print(
+                    "[GRASP_VERIFICATION] confidence=PASS "
+                    "position=PASS gripper_state=ATTACHED"
+                )
+                print(f"[PICK] physical suction joint attached only {answer['model']}")
+                break
+            except RuntimeError as grasp_error:
+                print(
+                    f"[GRASP_RETRY] attempt {grasp_attempt} failed: {grasp_error}"
+                )
+                if payload.attachment_state.get(answer["model"], False):
+                    payload.detach(
+                        answer["model"], float(grasp["attach_timeout_s"])
+                    )
+                # Retraction is a mandatory safety gate. If it fails, do not
+                # drive or begin another alignment attempt.
+                mission.move_suction_slide_to(
+                    -slide_speed, 0.0, extension_feedback,
+                    slide_tolerance, slide_timeout,
+                )
+                if grasp_attempt > max_grasp_retries:
+                    raise RuntimeError(
+                        "grasp failed after configured "
+                        f"{max_grasp_retries + 1} attempts"
+                    ) from grasp_error
+                if retry_retreat > 0.0:
+                    mission.drive_distance(-retry_retreat, speed=0.08)
+                print("[GRASP_RETRY] realigning camera and retrying grasp")
 
-        print("[STATE] VISUAL_SERVO -> EXTEND_SUCTION")
-        extended = mission.move_suction_slide_to(
-            slide_speed, slide_max, extension_feedback,
-            slide_tolerance, slide_timeout,
-        )
-        print(f"[SLIDE_GATE] extended={extended:.3f} m")
-        contact = payload.verify_grasp_pose(
-            answer["model"],
-            float(grasp["expected_box_forward_m"]),
-            float(grasp["forward_tolerance_m"]),
-            float(grasp["lateral_tolerance_m"]),
-            float(grasp["height_tolerance_m"]),
-            rack_yaw,
-            yaw_tolerance,
-        )
-        print(
-            "[CONTACT_GATE] "
-            f"forward={contact['forward_m']:.3f} m "
-            f"lateral={contact['lateral_m']:+.3f} m "
-            f"yaw_error={math.degrees(contact['yaw_error_rad']):+.2f} deg"
-        )
-        print("[STATE] EXTEND_SUCTION -> ATTACH_PAYLOAD")
-        payload.attach(answer["model"], float(grasp["attach_timeout_s"]))
-        print(f"[PICK] physical suction joint attached only {answer['model']}")
         print("[STATE] ATTACH_PAYLOAD -> RETRACT_PAYLOAD")
         retracted = mission.move_suction_slide_to(
             -slide_speed, 0.0, extension_feedback,
@@ -1086,6 +1494,35 @@ def main() -> None:
         print(
             "[RETRACT_GATE] suction slide and box are on the platform; "
             f"extension={retracted:.3f} m"
+        )
+        payload_distance = payload.verify_payload_on_agv(answer["model"])
+        print(
+            "[GRASP_VERIFICATION] retracted_payload_position=PASS "
+            f"payload_planar_distance={payload_distance:.3f} m"
+        )
+        tray_fit = payload.verify_payload_on_tray(
+            answer["model"],
+            tray_size_x=float(grasp.get("tray_size_x_m", TRAY_SIZE_X_M)),
+            tray_size_y=float(grasp.get("tray_size_y_m", TRAY_SIZE_Y_M)),
+            payload_size_x=float(
+                grasp.get("payload_size_x_m", PAYLOAD_SIZE_X_M)
+            ),
+            payload_size_y=float(
+                grasp.get("payload_size_y_m", PAYLOAD_SIZE_Y_M)
+            ),
+            payload_size_z=float(
+                grasp.get("payload_size_z_m", PAYLOAD_SIZE_Z_M)
+            ),
+            margin=float(grasp.get("tray_fit_margin_m", TRAY_FIT_MARGIN_M)),
+            height_tolerance=float(
+                grasp.get("tray_height_tolerance_m", 0.035)
+            ),
+        )
+        print(
+            "[TRAY_GATE] payload footprint fully inside tray "
+            f"center_forward={tray_fit['center_forward_m']:+.3f} m "
+            f"center_lateral={tray_fit['center_lateral_m']:+.3f} m "
+            f"height_error={tray_fit['height_error_m']:.3f} m"
         )
 
         # Never lower while the measured slide is still extended.
@@ -1121,22 +1558,73 @@ def main() -> None:
             return
 
         print("[STATE] RETRACT_PAYLOAD -> NAVIGATE_TO_PACKING")
-        mission.navigate(
-            answer["destination_anchor"], packing["approach"], args.wait
+        mission.publish_state(
+            "RETURN_TO_DROPOFF", destination="packing_station"
         )
+        drop_tray_fit = payload.verify_payload_on_tray(
+            answer["model"],
+            tray_size_x=float(grasp.get("tray_size_x_m", TRAY_SIZE_X_M)),
+            tray_size_y=float(grasp.get("tray_size_y_m", TRAY_SIZE_Y_M)),
+            payload_size_x=float(
+                grasp.get("payload_size_x_m", PAYLOAD_SIZE_X_M)
+            ),
+            payload_size_y=float(
+                grasp.get("payload_size_y_m", PAYLOAD_SIZE_Y_M)
+            ),
+            payload_size_z=float(
+                grasp.get("payload_size_z_m", PAYLOAD_SIZE_Z_M)
+            ),
+            margin=float(grasp.get("tray_fit_margin_m", TRAY_FIT_MARGIN_M)),
+            height_tolerance=float(
+                grasp.get("tray_height_tolerance_m", 0.035)
+            ),
+        )
+        drop_pose = release_approach_pose(
+            drop_center,
+            float(packing["approach"][2]),
+            drop_tray_fit["center_forward_m"],
+            drop_tray_fit["center_lateral_m"],
+            slide_max,
+        )
+        print(
+            "[DROP_ALIGN] measured tray offset "
+            f"({drop_tray_fit['center_forward_m']:+.3f},"
+            f" {drop_tray_fit['center_lateral_m']:+.3f}) m; "
+            f"Nav2 release approach=({drop_pose[0]:.2f}, {drop_pose[1]:.2f})"
+        )
+        mission.navigate(
+            answer["destination_anchor"], drop_pose, args.wait
+        )
+        print("[DROP_ALIGN] AGV is inside P; extending fork for release")
         print("[STATE] NAVIGATE_TO_PACKING -> RELEASE_PAYLOAD")
+        mission.publish_state("PLACE_PACKAGE", payload=answer["model"])
         mission.move_suction_slide_to(
             slide_speed, slide_max, extension_feedback,
             slide_tolerance, slide_timeout,
         )
         payload.detach(answer["model"], float(grasp["attach_timeout_s"]))
+        payload.stop_payload_motion(answer["model"])
         mission.move_suction_slide_to(
             -slide_speed, 0.0, extension_feedback,
             slide_tolerance, slide_timeout,
         )
         mission.move_lift_to(0.0, float(lift["duration_s"]))
+        payload.lower_released_payload(
+            answer["model"], target_center_z=drop_center_z
+        )
+        landed = payload.wait_for_drop(
+            answer["model"],
+            drop_center,
+            drop_half_extents,
+            target_center_z=drop_center_z,
+        )
+        print(
+            f"[DROP_GATE] carton settled inside P at "
+            f"({landed[0]:.2f}, {landed[1]:.2f}, z={landed[2]:.2f})"
+        )
         print(f"[DROP] {answer['model']} delivered to Packing Station")
         print("[MISSION] COMPLETE")
+        mission.publish_state("MISSION_COMPLETE", payload=answer["model"])
     finally:
         mission.destroy_node()
         rclpy.try_shutdown()

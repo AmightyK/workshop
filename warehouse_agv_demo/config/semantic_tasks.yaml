@@ -18,7 +18,12 @@ stations:
       C03: {anchor: pickup_C03, approach: [-4.31528, 4.06, 1.5708], vjepa_approach: [-4.31528, 4.06, 1.5708], shelf_height: 0.83}
   packing_station:
     slots:
-      PACK01: {anchor: dropoff_PACK01, approach: [10.80, -9.00, -1.5708]}
+      # The navigation goal is the center of the painted P bay. From this
+      # pose the south-facing fork releases the carton well inside the bay.
+      # The robot approaches from the north, extends the fork, and releases
+      # into the central part of P. Precise docking is unnecessary here: once
+      # Nav2 reaches the bay, the fork extends, releases and lowers the carton.
+      PACK01: {anchor: dropoff_PACK01, approach: [10.80, -10.60, -1.5708], drop_center: [10.80, -10.60], drop_half_extents: [1.35, 0.85], drop_center_tolerance: [0.30, 0.30], drop_surface_z: 0.055}
 
 objects:
   blue_box: {color: blue, location: storage_A, slot: A01, model: special_blue_box, shelf_pose: [-6.25528, -0.876987, 0.83]}

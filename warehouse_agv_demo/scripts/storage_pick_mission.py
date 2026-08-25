@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import subprocess
@@ -12,21 +13,27 @@ import time
 import unicodedata
 from pathlib import Path
 
+import numpy as np
 import rclpy
 import yaml
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped
 from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import NavigateThroughPoses, NavigateToPose
+from nav2_msgs.msg import SpeedLimit
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
+from std_msgs.msg import String
 
 from latent_route import (
     LatentRoutePlanner,
     LatentRouteSegment,
+    combine_route_segments,
+    hard_corner_points,
     orient_route_tangents,
     prune_hard_corner_checkpoints,
+    round_hard_corners,
 )
 
 
@@ -74,10 +81,12 @@ def print_route_card(
         f"({len(prune_hard_corner_checkpoints(latent_segment.poses[1:]))} checkpoints)"
     )
     print(f"{CYAN}│{RESET} Latent map   : {latent_segment.map_dir}")
-    print(f"{CYAN}│{RESET} Planner      : NavFn A* + SimpleSmoother")
+    print(f"{CYAN}│{RESET} Planner      : NavFn A* + rounded-corner MPPI")
     print(f"{CYAN}│{RESET} Localization : {localization}")
     print(f"{CYAN}│{RESET} Latent use   : recorded outbound corridor + V-JEPA dashboard")
-    print(f"{CYAN}│{RESET} Safety       : keep A* path + LiDAR stop/resume")
+    print(
+        f"{CYAN}│{RESET} Safety       : predicted WAIT/PASS/REPLAN + local LiDAR"
+    )
     print(f"{CYAN}{BOLD}╰─────────────────────────────────────────────────────────╯{RESET}")
 
 
@@ -154,6 +163,16 @@ class CabinetRouteNavigator(Node):
         )
         self.lifecycle = self.create_client(GetState, "/bt_navigator/get_state")
         self.preview = self.create_publisher(PoseStamped, "/semantic_goal", 1)
+        self.mission_state = self.create_publisher(
+            String, "/warehouse/mission_state", 10
+        )
+        self.speed_limit = self.create_publisher(SpeedLimit, "/speed_limit", 10)
+        self.create_subscription(
+            String,
+            "/warehouse/behavior_decision",
+            self._on_behavior_decision,
+            10,
+        )
         self.last_feedback = 0.0
         self.goal_initial_distance = 0.0
         self.last_distance_remaining = math.inf
@@ -161,6 +180,86 @@ class CabinetRouteNavigator(Node):
         self.last_current_xy: tuple[float, float] | None = None
         self.progress_visible = False
         self.active_goal = None
+        self.replan_requested = False
+        route_config = yaml.safe_load(ROUTE_CONFIG.read_text(encoding="utf-8"))
+        self.tracking = route_config.get("trajectory_tracking", {})
+        self.active_corner_points = np.empty((0, 2), dtype=np.float64)
+        self.speed_limited = False
+        self.shelf_transition_xy: tuple[float, float] | None = None
+        self.shelf_state_details: dict[str, object] = {}
+        self.shelf_state_published = False
+        self.current_state_message: String | None = None
+        self.last_state_publish = -math.inf
+
+    def publish_state(self, state: str, **details: object) -> None:
+        payload = {
+            "state": state,
+            "timestamp": time.time(),
+            **details,
+        }
+        self.current_state_message = String(
+            data=json.dumps(payload, sort_keys=True)
+        )
+        self.mission_state.publish(self.current_state_message)
+        self.last_state_publish = time.monotonic()
+        self.get_logger().info(f"MISSION_STATE {state}")
+
+    def _on_behavior_decision(self, message: String) -> None:
+        """Turn a bounded REPLAN decision into one fresh Nav2 action goal."""
+        try:
+            report = json.loads(message.data)
+        except json.JSONDecodeError:
+            return
+        if (
+            report.get("decision") != "REPLAN"
+            or self.active_goal is None
+            or self.replan_requested
+        ):
+            return
+        self.replan_requested = True
+        self.get_logger().warning(
+            "Predictive planner requested REPLAN: " + str(report.get("reason", ""))
+        )
+        # Cancellation is asynchronous and safe from the executor callback.
+        # The normal retry path then resends only the remaining corridor,
+        # forcing NavFn to compute a fresh path once.
+        self.active_goal.cancel_goal_async()
+
+    def _publish_speed_limit(self, limited: bool) -> None:
+        if limited == self.speed_limited:
+            return
+        message = SpeedLimit()
+        message.percentage = False
+        message.speed_limit = (
+            float(self.tracking.get("corner_speed_limit_mps", 0.40))
+            if limited
+            else 0.0
+        )
+        self.speed_limit.publish(message)
+        self.speed_limited = limited
+
+    def _update_route_phase(self, current_xy: tuple[float, float]) -> None:
+        if len(self.active_corner_points):
+            distance = float(
+                np.min(
+                    np.linalg.norm(
+                        self.active_corner_points - np.asarray(current_xy), axis=1
+                    )
+                )
+            )
+            self._publish_speed_limit(
+                distance <= float(
+                    self.tracking.get("corner_slowdown_radius_m", 2.50)
+                )
+            )
+        if self.shelf_transition_xy is not None and not self.shelf_state_published:
+            distance = math.hypot(
+                current_xy[0] - self.shelf_transition_xy[0],
+                current_xy[1] - self.shelf_transition_xy[1],
+            )
+            if distance <= 1.0:
+                self.publish_state("SHELF_APPROACH", **self.shelf_state_details)
+                self.shelf_state_published = True
 
     def wait_until_active(self, timeout: float) -> None:
         """Wait for Nav2 lifecycle activation, not just action discovery."""
@@ -194,9 +293,16 @@ class CabinetRouteNavigator(Node):
 
     def feedback(self, message) -> None:
         now = time.monotonic()
+        if (
+            self.current_state_message is not None
+            and now - self.last_state_publish >= 1.0
+        ):
+            self.mission_state.publish(self.current_state_message)
+            self.last_state_publish = now
         remaining = max(0.0, float(message.feedback.distance_remaining))
         current = message.feedback.current_pose.pose.position
         self.last_current_xy = (float(current.x), float(current.y))
+        self._update_route_phase(self.last_current_xy)
         if remaining > 0.05 or self.goal_initial_distance > 0.05:
             self.last_distance_remaining = remaining
         if hasattr(message.feedback, "number_of_poses_remaining"):
@@ -237,6 +343,7 @@ class CabinetRouteNavigator(Node):
         if not self.client.wait_for_server(timeout_sec=wait):
             raise RuntimeError("không tìm thấy Nav2 /navigate_to_pose")
         for attempt in range(1, retries + 2):
+            self.replan_requested = False
             pose = self.make_pose(values)
             self.preview.publish(pose)
             self.goal_initial_distance = 0.0
@@ -280,6 +387,10 @@ class CabinetRouteNavigator(Node):
         segment: LatentRouteSegment,
         wait: float,
         retries: int,
+        *,
+        shelf_transition_xy: tuple[float, float] | None = None,
+        shelf_state_details: dict[str, object] | None = None,
+        final_yaw_from_path: bool = False,
     ) -> None:
         """Follow stable spatial checkpoints sampled from the mapping traversal."""
         self.wait_until_active(wait)
@@ -288,11 +399,30 @@ class CabinetRouteNavigator(Node):
         # The first saved pose is the current segment anchor. Avoid asking
         # Nav2 to stop immediately at the pose where the robot already sits.
         values = segment.poses[1:] if len(segment.poses) > 1 else segment.poses
-        values = prune_hard_corner_checkpoints(values)
+        threshold = float(self.tracking.get("hard_turn_threshold_rad", 0.75))
+        self.active_corner_points = hard_corner_points(
+            values, angle_threshold_rad=threshold
+        )
+        values = round_hard_corners(
+            values,
+            angle_threshold_rad=threshold,
+            radius_m=float(self.tracking.get("corner_rounding_radius_m", 0.90)),
+            curve_samples=int(self.tracking.get("corner_curve_samples", 3)),
+        )
         values = orient_route_tangents(values)
+        if final_yaw_from_path and len(values) >= 2:
+            final_delta = values[-1, :2] - values[-2, :2]
+            if float(np.linalg.norm(final_delta)) > 0.05:
+                values[-1, 3] = math.atan2(
+                    float(final_delta[1]), float(final_delta[0])
+                )
+        self.shelf_transition_xy = shelf_transition_xy
+        self.shelf_state_details = shelf_state_details or {}
+        self.shelf_state_published = False
         poses = [self.make_pose(list(pose[[0, 1, 3]])) for pose in values]
         pending_poses = poses
         for attempt in range(1, retries + 2):
+            self.replan_requested = False
             self.goal_initial_distance = 0.0
             self.last_distance_remaining = math.inf
             self.poses_remaining = len(pending_poses)
@@ -321,6 +451,7 @@ class CabinetRouteNavigator(Node):
                 if outcome is not None and outcome.status == GoalStatus.STATUS_SUCCEEDED:
                     self.finish_progress()
                     self.active_goal = None
+                    self._publish_speed_limit(False)
                     print(
                         f"  {GREEN}✓ LATENT CORRIDOR COMPLETE{RESET} {name} "
                         f"(target error {segment.target_error_m:.2f} m)"
@@ -336,6 +467,7 @@ class CabinetRouteNavigator(Node):
                     and self.last_distance_remaining <= 0.40
                 ):
                     self.finish_progress()
+                    self._publish_speed_limit(False)
                     print(
                         f"  {GREEN}✓ LATENT CORRIDOR COMPLETE{RESET} {name} "
                         f"(controller remainder {self.last_distance_remaining:.2f} m)"
@@ -358,9 +490,11 @@ class CabinetRouteNavigator(Node):
                 deadline = time.monotonic() + 2.0
                 while time.monotonic() < deadline:
                     rclpy.spin_once(self, timeout_sec=0.1)
+        self._publish_speed_limit(False)
         raise RuntimeError(f"Nav2 không thể đi hết corridor latent {name}")
 
     def cancel_active_goal(self) -> None:
+        self._publish_speed_limit(False)
         if self.active_goal is None or not rclpy.ok():
             return
         future = self.active_goal.cancel_goal_async()
@@ -488,7 +622,31 @@ def main() -> None:
         staging_segment = latent_planner.segment_to(staging_pose)
     except (FileNotFoundError, ValueError, RuntimeError) as error:
         parser.error(str(error))
-    print_route_card(storage, route, available, staging_segment)
+    outbound_segment = staging_segment
+    selected_target: tuple[
+        str, dict, str, LatentRouteSegment, list[float]
+    ] | None = None
+    # The one-command mission already knows its requested color. Resolve it
+    # before motion and keep the staging + Shelf A approach in one action so
+    # MPPI sees (and rounds) the shared second 90-degree turn. Interactive
+    # missions retain the original stop-and-select behavior.
+    if args.color is not None and not args.route_only and not args.resume_delivery:
+        try:
+            color, _, item = select_color(
+                tasks, storage, args.color, interactive=False
+            )
+            slot, pickup_segment, packing_pose = payload_route_segments(
+                tasks, storage, item, latent_planner, staging_segment
+            )
+            outbound_segment = combine_route_segments(
+                staging_segment, pickup_segment
+            )
+            selected_target = (
+                color, item, slot, pickup_segment, packing_pose
+            )
+        except (RuntimeError, ValueError) as error:
+            parser.error(str(error))
+    print_route_card(storage, route, available, outbound_segment)
     if args.resume_delivery:
         mode = "RESUME LOADED RETURN + DROP AT PACKING STATION"
     elif args.deliver:
@@ -497,7 +655,7 @@ def main() -> None:
         mode = "PICK ONLY (payload stays attached)"
     print(f"{GREEN}◆ MISSION{RESET} {mode}")
     if args.dry_run and not args.resume_delivery:
-        if args.color is not None:
+        if args.color is not None and selected_target is None:
             try:
                 select_color(tasks, storage, args.color, interactive=False)
             except (RuntimeError, ValueError) as error:
@@ -542,6 +700,9 @@ def main() -> None:
         rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
         navigator = CabinetRouteNavigator()
         try:
+            navigator.publish_state(
+                "RETURN_TO_DROPOFF", slot=slot, destination="packing_station"
+            )
             run_loaded_return(
                 navigator,
                 slot=slot,
@@ -583,8 +744,29 @@ def main() -> None:
     navigator = CabinetRouteNavigator()
     interrupted = False
     try:
+        navigator.publish_state(
+            "NAVIGATE_TO_SHELF", storage=storage, destination=route["label"]
+        )
         navigator.navigate_latent_corridor(
-            f"dock → {route['label']}", staging_segment, args.wait, args.retries
+            (
+                f"dock → {selected_target[2]}"
+                if selected_target is not None
+                else f"dock → {route['label']}"
+            ),
+            outbound_segment,
+            args.wait,
+            args.retries,
+            shelf_transition_xy=(float(staging_pose[0]), float(staging_pose[1]))
+            if selected_target is not None
+            else None,
+            shelf_state_details={
+                "storage": storage,
+                "slot": selected_target[2],
+                "color": selected_target[0],
+            }
+            if selected_target is not None
+            else None,
+            final_yaw_from_path=selected_target is not None,
         )
     except KeyboardInterrupt:
         interrupted = True
@@ -599,39 +781,56 @@ def main() -> None:
     if interrupted:
         raise SystemExit(130)
 
-    print(f"\n{GREEN}{BOLD}✓ AGV đã ở staging của {route['label']}{RESET}")
+    if selected_target is not None:
+        print(
+            f"\n{GREEN}{BOLD}✓ AGV đã tới {selected_target[2]} "
+            f"qua một corridor liên tục{RESET}"
+        )
+    else:
+        print(f"\n{GREEN}{BOLD}✓ AGV đã ở staging của {route['label']}{RESET}")
     if args.route_only:
         print(f"[SELECT] màu có sẵn: {', '.join(available)}")
         return
-    try:
-        color, _, item = select_color(
-            tasks, storage, args.color, interactive=sys.stdin.isatty()
-        )
-    except (RuntimeError, ValueError) as error:
-        parser.error(str(error))
-    try:
-        slot, pickup_segment, packing_pose = payload_route_segments(
-            tasks, storage, item, latent_planner, staging_segment
-        )
-    except (ValueError, RuntimeError) as error:
-        parser.error(str(error))
+    if selected_target is not None:
+        color, item, slot, pickup_segment, packing_pose = selected_target
+    else:
+        try:
+            color, _, item = select_color(
+                tasks, storage, args.color, interactive=sys.stdin.isatty()
+            )
+        except (RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        try:
+            slot, pickup_segment, packing_pose = payload_route_segments(
+                tasks, storage, item, latent_planner, staging_segment
+            )
+        except (ValueError, RuntimeError) as error:
+            parser.error(str(error))
 
     # Color is selected only after staging, then the final approach continues
     # along the exact same forward latent sequence used during mapping.
-    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    navigator = CabinetRouteNavigator()
-    try:
-        navigator.navigate_latent_corridor(
-            f"{route['label']} → {slot}", pickup_segment, args.wait, args.retries
-        )
-    except KeyboardInterrupt:
-        navigator.finish_progress()
-        navigator.cancel_active_goal()
-        raise SystemExit(130)
-    finally:
-        navigator.destroy_node()
-        if rclpy.ok():
-            rclpy.shutdown()
+    if selected_target is None:
+        rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+        navigator = CabinetRouteNavigator()
+        try:
+            navigator.publish_state(
+                "SHELF_APPROACH", storage=storage, slot=slot, color=color
+            )
+            navigator.navigate_latent_corridor(
+                f"{route['label']} → {slot}",
+                pickup_segment,
+                args.wait,
+                args.retries,
+                final_yaw_from_path=True,
+            )
+        except KeyboardInterrupt:
+            navigator.finish_progress()
+            navigator.cancel_active_goal()
+            raise SystemExit(130)
+        finally:
+            navigator.destroy_node()
+            if rclpy.ok():
+                rclpy.shutdown()
 
     storage_label = storage[-1]
     command = f"Bring the {color} box from Storage {storage_label} to Packing Station"
@@ -659,6 +858,9 @@ def main() -> None:
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     navigator = CabinetRouteNavigator()
     try:
+        navigator.publish_state(
+            "RETURN_TO_DROPOFF", slot=slot, destination="packing_station"
+        )
         run_loaded_return(
             navigator,
             slot=slot,

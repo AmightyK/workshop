@@ -13,8 +13,11 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from latent_route import (
     LatentRoutePlanner,
+    combine_route_segments,
+    hard_corner_points,
     orient_route_tangents,
     prune_hard_corner_checkpoints,
+    round_hard_corners,
 )
 
 
@@ -114,6 +117,48 @@ class LatentRoutePlannerTests(unittest.TestCase):
         pruned = prune_hard_corner_checkpoints(poses)
 
         np.testing.assert_allclose(pruned[:, :2], [[0, 0], [2, 2], [2, 4]])
+
+    def test_corner_rounding_preserves_aisle_apex_without_overshoot_target(self) -> None:
+        poses = np.asarray(
+            [[0.0, 0.0, 0.0, 0.0], [2.0, 0.0, 0.0, 0.0], [2.0, 2.0, 0.0, 1.57]]
+        )
+
+        rounded = round_hard_corners(poses, radius_m=0.5, curve_samples=3)
+
+        self.assertGreater(len(rounded), len(poses))
+        np.testing.assert_allclose(rounded[0, :2], poses[0, :2])
+        np.testing.assert_allclose(rounded[-1, :2], poses[-1, :2])
+        # Curve entry commands steering before the apex; no generated goal
+        # lies beyond the aisle boundaries x<=2 and y>=0.
+        self.assertTrue(np.all(rounded[:, 0] <= 2.0 + 1e-12))
+        self.assertTrue(np.all(rounded[:, 1] >= -1e-12))
+        np.testing.assert_allclose(hard_corner_points(poses), [[2.0, 0.0]])
+
+    def test_corner_rounding_looks_past_dense_post_apex_sample(self) -> None:
+        poses = np.asarray(
+            [[0.0, 0.0, 0.0, 0.0], [2.0, 0.0, 0.0, 0.0],
+             [2.0, 0.2, 0.0, 1.57], [2.0, 2.0, 0.0, 1.57]]
+        )
+
+        rounded = round_hard_corners(poses, radius_m=0.8, curve_samples=2)
+
+        np.testing.assert_allclose(rounded[1, :2], [1.2, 0.0])
+        self.assertFalse(
+            np.any(np.all(np.isclose(rounded[:, :2], [2.0, 0.2]), axis=1))
+        )
+
+    def test_adjacent_route_segments_can_share_one_continuous_corner(self) -> None:
+        planner = self.make_planner(
+            [[0, 0, 0, 0], [1, 0, 0, 0], [2, 0, 0, 0], [2, 1, 0, 1.57]]
+        )
+        first = planner.segment_to([2, 0, 0], spacing_m=0.1)
+        second = planner.segment_to([2, 1, 1.57], start_index=first.end_index, spacing_m=0.1)
+
+        combined = combine_route_segments(first, second)
+
+        self.assertEqual(combined.start_index, 0)
+        self.assertEqual(combined.end_index, 3)
+        np.testing.assert_allclose(combined.poses[-1, :2], [2, 1])
 
     def test_intermediate_yaw_follows_path_tangent(self) -> None:
         poses = np.asarray(

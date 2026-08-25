@@ -37,6 +37,7 @@ BRIDGE_PID=""
 IMAGE_RELAY_PID=""
 NAV2_PID=""
 VJEPA_PID=""
+PREDICTION_PID=""
 DASHBOARD_PID=""
 VJEPA_EXPECTED=false
 
@@ -132,6 +133,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   stop_process_group "$DASHBOARD_PID"
+  stop_process_group "$PREDICTION_PID"
   stop_process_group "$VJEPA_PID"
   stop_process_group "$NAV2_PID"
   stop_process_group "$IMAGE_RELAY_PID"
@@ -220,6 +222,20 @@ if ! gz topic -l 2>/dev/null | grep -Fx "/warehouse_agv/camera" >/dev/null; then
   exit 1
 fi
 
+# A pick command is a new scenario run even when Gazebo stays open. Reset the
+# people controller's route, dwell and proximity-activation state so repeated
+# missions show live crossings instead of inheriting the previous run.
+PEOPLE_RESET_TOPIC="/warehouse/random_people/reset"
+if gz topic -l 2>/dev/null | grep -Fx "$PEOPLE_RESET_TOPIC" >/dev/null; then
+  for _ in $(seq 1 4); do
+    gz topic -t "$PEOPLE_RESET_TOPIC" -m gz.msgs.Boolean -p 'data: true'
+    sleep 0.03
+  done
+  echo "${GREEN}[WORKERS] New mission: patrols and crossing triggers reset.${RESET}"
+else
+  echo "${YELLOW}[WORKERS] Reset topic unavailable; restart ./run_demo.sh to load the updated worker controller.${RESET}"
+fi
+
 BRIDGE_READY=false
 for _ in $(seq 1 16); do
   if ros2 topic list 2>/dev/null | grep -Fx "/camera" >/dev/null; then
@@ -265,6 +281,17 @@ if [[ -f "$VJEPA_MAP/global_embeddings.npy" && -f "$VJEPA_MAP/poses.npy" ]]; the
   else
     echo "${GREEN}[V-JEPA] Temporal localizer is active.${RESET}"
   fi
+  if ! ros2 node list 2>/dev/null \
+    | grep -Fx "/vjepa_latent_prediction_monitor" >/dev/null; then
+    echo "${YELLOW}[V-JEPA] Starting asynchronous z(t+1..3) evaluator...${RESET}"
+    setsid "$VJEPA_DIR/run_latent_prediction_monitor.sh" \
+      --config "$VJEPA_CONFIG" \
+      --ros-args -p use_sim_time:=true \
+      > "$LOG_DIR/pick_vjepa_latent_prediction.log" 2>&1 &
+    PREDICTION_PID=$!
+  else
+    echo "${GREEN}[V-JEPA] Latent prediction logger is active.${RESET}"
+  fi
   if [[ -n "${DISPLAY:-}" ]] \
     && ! pid_file_is_alive "$DASHBOARD_PID_FILE" \
     && ! ros2 node list 2>/dev/null | grep -Fx "/vjepa_localization_dashboard" >/dev/null; then
@@ -286,16 +313,24 @@ fi
 # Do not let a pick route leave the known dock before the first camera-only
 # estimate has established its route-start prior.
 if "$VJEPA_EXPECTED" && ! "$RESUME_DELIVERY"; then
-  echo "${CYAN}[V-JEPA] Warming model and anchoring the first latent at the dock...${RESET}"
-  wait_for_ros_name topic /vjepa_pose 90
-  # Topic discovery happens as soon as the publisher is created, while the
-  # first V-JEPA2 CUDA warm-up may still need close to a minute. Wait for an
-  # actual pose sample, not merely the topic name.
-  if ! timeout 100 ros2 topic echo /vjepa_pose --once >/dev/null 2>&1; then
-    echo "[V-JEPA] No initial pose was published; refusing to start an invalid comparison." >&2
-    exit 1
+  NAV_NODES="$(ros2 node list 2>/dev/null || true)"
+  if [[ "$NAV_NODES" == *"/gazebo_ground_truth_localizer"* ]]; then
+    # V-JEPA is dashboard-only in the stable demo. Do not consume 15–20 s of
+    # the 90-second pick show waiting for a shadow signal that never steers the
+    # robot; it can finish warming while Nav2 starts along the retained route.
+    echo "${CYAN}[V-JEPA] Shadow model warming in parallel; Nav2 may depart now.${RESET}"
+  else
+    echo "${CYAN}[V-JEPA] Warming model and anchoring the first latent at the dock...${RESET}"
+    wait_for_ros_name topic /vjepa_pose 90
+    # Topic discovery happens as soon as the publisher is created, while the
+    # first V-JEPA2 CUDA warm-up may still need close to a minute. Wait for an
+    # actual pose sample only when V-JEPA owns map->odom.
+    if ! timeout 100 ros2 topic echo /vjepa_pose --once >/dev/null 2>&1; then
+      echo "[V-JEPA] No initial pose was published; refusing to start an invalid control run." >&2
+      exit 1
+    fi
+    echo "${GREEN}[V-JEPA] Initial temporal pose is ready; starting the recorded corridor.${RESET}"
   fi
-  echo "${GREEN}[V-JEPA] Initial temporal pose is ready; starting the recorded corridor.${RESET}"
 fi
 
 if ! ros2 action list 2>/dev/null | grep -Fx "/navigate_to_pose" >/dev/null; then
@@ -307,15 +342,21 @@ fi
 wait_for_ros_name action /navigate_to_pose 60
 wait_for_lifecycle_active /bt_navigator 60
 wait_for_ros_name topic /nav/localization_status 60
-NAV_STATUS="$(timeout 4 ros2 topic echo /nav/localization_status --once --field data 2>/dev/null || true)"
-if [[ "$NAV_STATUS" == *"GAZEBO_TRUTH_REFERENCE"* ]]; then
+NAV_NODES="$(ros2 node list 2>/dev/null || true)"
+NAV_STATUS="$(timeout 6 ros2 topic echo /nav/localization_status --once --field data 2>/dev/null || true)"
+if [[ "$NAV_NODES" == *"/gazebo_ground_truth_localizer"* ]] \
+    || [[ "$NAV_STATUS" == *"GAZEBO_TRUTH_REFERENCE"* ]]; then
   export WAREHOUSE_NAV_LOCALIZATION_SOURCE=ground_truth
   echo "${GREEN}[NAV] Control: Gazebo truth reference | Planner: NavFn A*${RESET}"
   echo "${CYAN}[V-JEPA] Camera-only shadow mode: đang so sánh, không điều khiển xe.${RESET}"
-else
+elif [[ "$NAV_NODES" == *"/vjepa_nav_localizer"* ]] \
+    || [[ "$NAV_STATUS" == *'"source": "VJEPA'* ]]; then
   export WAREHOUSE_NAV_LOCALIZATION_SOURCE=vjepa
   echo "${GREEN}[NAV] Control: V-JEPA camera + odom | Planner: NavFn A*${RESET}"
   echo "${CYAN}[TRUTH] Gazebo GPS chỉ dùng trong dashboard để đối chiếu.${RESET}"
+else
+  echo "[PICK BOX] Cannot identify the active Nav2 localization source." >&2
+  exit 1
 fi
 
 MISSION_ARGS=(--storage "$STORAGE" --color "$COLOR")

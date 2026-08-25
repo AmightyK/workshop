@@ -5,6 +5,13 @@ Robotics “Tugbot in Warehouse”** layout from Gazebo Fuel, but replaces the o
 Tugbot with a custom compact warehouse AMR. The world also includes semantic
 storage markers, colored target boxes, shelves, pallets, carts and obstacles.
 
+The complete Shelf A / blue-package mission now includes predictive
+`WAIT`/`PASS`/`REPLAN` human handling, configurable grasp retries, curvature
+control at the second 90-degree turn, and asynchronous V-JEPA `z(t+1..3)`
+logging/evaluation. See
+[`docs/warehouse_vjepa_mission.md`](docs/warehouse_vjepa_mission.md) for the
+architecture, state machine, metrics, failure policy, and validation procedure.
+
 This implements the simulation block from the architecture as:
 
 - `GAZEBO HARMONIC (PC)` instead of `ISAAC SIM (PC)`

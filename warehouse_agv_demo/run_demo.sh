@@ -20,6 +20,7 @@ VJEPA_IMAGE_TOPIC="${WAREHOUSE_VJEPA_IMAGE_TOPIC:-/vjepa/camera/image_raw}"
 DASHBOARD_CAMERA_TOPIC="${WAREHOUSE_DASHBOARD_CAMERA_TOPIC:-/camera}"
 VJEPA_IMAGE_FPS="${WAREHOUSE_VJEPA_IMAGE_FPS:-32.0}"
 VJEPA_LOCALIZER_ENABLED="${WAREHOUSE_VJEPA_LOCALIZER:-true}"
+VJEPA_PREDICTION_LOGGER_ENABLED="${WAREHOUSE_VJEPA_PREDICTION_LOGGER:-true}"
 
 # Keep this demo isolated from stale Gazebo discovery sessions. The bridge uses
 # the same default partition, while still allowing an explicit override.
@@ -66,8 +67,9 @@ printf '%s\n' "  ${GREEN}●${RESET} Camera            : 640×360 · 16:9 · 32 
 printf '%s\n' "  ${GREEN}●${RESET} V-JEPA clip       : rolling 1.0 s · 4 FPS · 4 newest frames"
 printf '%s\n' "  ${GREEN}●${RESET} DDS image topic   : ${VJEPA_IMAGE_TOPIC} · ${VJEPA_IMAGE_FPS} FPS"
 printf '%s\n' "  ${GREEN}●${RESET} DDS Orin return  : /vjepa_pose · /vjepa_latent · /vjepa_localization/debug"
+printf '%s\n' "  ${GREEN}●${RESET} Future rollouts  : z(t+1..3) · L1/cosine/drift · async logging"
 printf '%s\n' "  ${GREEN}●${RESET} DDS domain/RMW    : ${ROS_DOMAIN_ID:-0} · ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
-printf '%s\n' "  ${GREEN}●${RESET} Global planner     : NavFn A* once/goal + LiDAR stop/resume"
+printf '%s\n' "  ${GREEN}●${RESET} Behavior planner   : trajectory prediction · WAIT/PASS/REPLAN"
 if is_enabled "$DASHBOARD_ODOM_PROJECTION"; then
   printf '%s\n' "  ${YELLOW}●${RESET} Odom projection    : telemetry only (explicitly enabled)"
 else
@@ -138,6 +140,13 @@ if is_enabled "${WAREHOUSE_VJEPA_ENABLED:-true}"; then
         --ros-args -p use_sim_time:=true
     else
       printf '%s\n' "  ${YELLOW}●${RESET} V-JEPA localizer  : off · waiting for Orin DDS output"
+    fi
+    if is_enabled "$VJEPA_PREDICTION_LOGGER_ENABLED"; then
+      start_component vjepa_latent_prediction "" \
+        "$VJEPA_DIR/run_latent_prediction_monitor.sh" \
+        --config "$VJEPA_CONFIG" \
+        --ros-args -p use_sim_time:=true
+      printf '%s\n' "  ${GREEN}●${RESET} Latent evidence   : frames/vectors/poses + future metrics"
     fi
     VJEPA_READY=true
     if is_enabled "${WAREHOUSE_VJEPA_DASHBOARD:-true}" && [[ -n "${DISPLAY:-}" ]]; then
@@ -215,7 +224,10 @@ trap cleanup EXIT INT TERM
   for _ in $(seq 1 100); do
     ALL_READY=true
     for MODEL_NAME in "${TASK_BOXES[@]}"; do
-      if ! gz topic -l 2>/dev/null | grep -Fx "/warehouse_agv/gripper/$MODEL_NAME/detach" >/dev/null; then
+      if ! gz topic -l 2>/dev/null \
+          | grep -Fx "/warehouse_agv/gripper/$MODEL_NAME/detach" >/dev/null \
+        || ! gz topic -l 2>/dev/null \
+          | grep -Fx "/model/$MODEL_NAME/cmd_vel" >/dev/null; then
         ALL_READY=false
         break
       fi
@@ -241,6 +253,22 @@ trap cleanup EXIT INT TERM
           --timeout 3000 --req 'pause: true, multi_step: 2' >/dev/null
         sleep 0.05
       done
+      # Detaching the initially-created fixed joints can leave a tiny residual
+      # carton velocity. With shelf gravity intentionally disabled that drift
+      # would persist for the whole outbound run. Explicitly zero every carton
+      # controller, then consume the commands in paused simulation steps.
+      ZERO_PIDS=()
+      for MODEL_NAME in "${TASK_BOXES[@]}"; do
+        gz topic -t "/model/$MODEL_NAME/cmd_vel" -m gz.msgs.Twist \
+          -p 'linear { x: 0 y: 0 z: 0 } angular { x: 0 y: 0 z: 0 }' &
+        ZERO_PIDS+=("$!")
+      done
+      for ZERO_PID in "${ZERO_PIDS[@]}"; do
+        wait "$ZERO_PID"
+      done
+      gz service -s /world/world_demo/control \
+        --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean \
+        --timeout 3000 --req 'pause: true, multi_step: 2' >/dev/null
       # Resume only after the final detach command has crossed Transport and
       # been consumed by the systems on a paused simulation update.
       gz service -s /world/world_demo/control \

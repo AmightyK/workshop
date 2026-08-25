@@ -1,6 +1,7 @@
 from geometry_msgs.msg import PoseStamped
 
 from storage_pick_mission import prune_passed_checkpoints
+from grasp_retry import grasp_attempts
 
 
 def _pose(x: float, y: float) -> PoseStamped:
@@ -34,3 +35,8 @@ def test_retry_does_not_cut_route_when_robot_is_far_off_corridor() -> None:
     pruned = prune_passed_checkpoints(pending, (1.0, 2.0))
 
     assert pruned == pending
+
+
+def test_grasp_retry_budget_is_configurable_and_bounded() -> None:
+    assert list(grasp_attempts(0)) == [1]
+    assert list(grasp_attempts(2)) == [1, 2, 3]
