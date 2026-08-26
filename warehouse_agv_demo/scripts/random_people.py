@@ -24,6 +24,8 @@ ENABLE_TOPIC = "/warehouse/random_people/enabled"
 RESET_TOPIC = "/warehouse/random_people/reset"
 UPDATE_PERIOD = 1.0 / 30.0
 MAX_YAW_SPEED_RADPS = 2.4
+HUMAN_1_ACTIVATION_DISTANCE_M = 3.2
+HUMAN_2_CONTINUOUS = True
 
 
 @dataclass
@@ -103,16 +105,15 @@ class RandomPeopleController:
             # obstacles instead of relying only on static-map avoidance.
             Walker(
                 "random_worker_4",
-                ((7.0, -18.0), (7.0, -2.0)),
+                # Human #1 begins stationary in the route itself. Proximity
+                # activates one northbound walk that clears the retained path.
+                ((7.0, -10.0), (7.0, -2.0)),
                 0.62 * speed_scale,
                 7.0,
-                -13.2,
+                -10.0,
                 yaw=math.pi / 2.0,
                 endpoint_wait_s=1.5,
-                # Start the crossing while both actors are still far apart.
-                # The worker visibly walks in from the aisle instead of
-                # appearing to react only when the AGV reaches the camera.
-                activation_distance_m=7.2,
+                activation_distance_m=HUMAN_1_ACTIVATION_DISTANCE_M,
                 activated=False,
             ),
             Walker(
@@ -123,10 +124,10 @@ class RandomPeopleController:
                 0.56 * speed_scale,
                 -4.8,
                 -4.2,
-                # Pause off the AGV lane before walking back. An immediate
-                # reversal made the worker re-enter while the vehicle was
-                # resuming from the first safe stop.
-                endpoint_wait_s=4.0,
+                # Human #2 continuously patrols left-right. It decelerates
+                # only as required to reverse its physical heading; there is
+                # no endpoint dwell or mission-time trigger.
+                continuous=HUMAN_2_CONTINUOUS,
             ),
         ]
         self.walkers_by_name = {walker.name: walker for walker in self.walkers}
@@ -136,7 +137,7 @@ class RandomPeopleController:
         }
         self.velocity_publishers = {}
         for walker in self.walkers:
-            if walker.endpoint_wait_s > 0.0:
+            if walker.endpoint_wait_s > 0.0 or walker.continuous:
                 # Scripted crossing workers start with one outbound pass. Their
                 # long routes keep them moving while providing a large safe
                 # interval before they can revisit the AGV intersection.
@@ -288,7 +289,7 @@ class RandomPeopleController:
             walker.target = None
             walker.wait_until = 0.0
             walker.activated = walker.activation_distance_m is None
-            if walker.endpoint_wait_s > 0.0:
+            if walker.endpoint_wait_s > 0.0 or walker.continuous:
                 walker.target = walker.waypoints[-1]
             else:
                 walker.choose_target(self.generator)

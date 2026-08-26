@@ -10,8 +10,11 @@ telemetry-only rather than being drawn as pure V-JEPA.
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 import ctypes.util
+import functools
+import hashlib
 import json
 import math
 import os
@@ -27,6 +30,8 @@ from typing import Any
 import cv2
 import numpy as np
 import yaml
+from PIL import Image as PILImage
+from PIL import ImageDraw, ImageFont
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +72,156 @@ TELEMETRY_WINDOW = "VL-JEPA Warehouse Streaming QA"
 MAP_WINDOW = "Warehouse Map - Truth GPS & Planning"
 STREAMING_WIDTH = 1440
 STREAMING_HEIGHT = 568
+DASHBOARD_OBSTACLE_DISTANCE_M = 4.0
+
+WAREHOUSE_ANSWER_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "q01": ("Robot đang đứng yên.", "Robot đang di chuyển chậm.", "Robot đang di chuyển nhanh."),
+    "q02": ("Robot đi thẳng.", "Robot đang cua trái.", "Robot đang cua phải."),
+    "q03": ("Tốc độ đang tăng.", "Tốc độ đang giữ tương đối đều.", "Tốc độ đang giảm."),
+    "q04": ("Phía trước đang thoáng và nhìn được xa.", "Phía trước đang bị chặn gần."),
+    "q05": ("Không có vật nào đang phình to rõ rệt.", "Có một vật phía trước đang lớn dần."),
+    "q06": ("Vật đó đang đứng yên.", "Vật đó đang di chuyển.", "Chưa thấy vật đó tự di chuyển."),
+    "q07": ("Vật cản gần nhất ở bên trái.", "Vật cản gần nhất ở chính giữa.", "Vật cản gần nhất ở bên phải."),
+    "q08": ("Không, hướng đi hiện tại vẫn an toàn.", "Có, giữ nguyên hướng có thể dẫn đến va chạm."),
+    "q09": ("Đi tiếp bình thường.", "Chậm lại và giữ khoảng cách.", "Dừng và chờ đường trống.", "Đổi sang đường đi khác."),
+    "q10": ("Chưa cần né.", "Né sang trái.", "Né sang phải."),
+    "q11": ("Lối đi phía trước đang rộng ra.", "Lối đi phía trước vẫn ổn định.", "Lối đi đang hẹp lại."),
+    "q12": ("Robot đang giữ gần giữa lối.", "Robot đang lệch nhẹ sang trái.", "Robot đang lệch nhẹ sang phải."),
+    "q13": ("Không có người ở gần phía trước.", "Có người phía trước đang đứng yên.", "Có người phía trước đang di chuyển."),
+    "q14": (
+        "Khoảng trống phía trước đủ rộng để đi qua.",
+        "Khoảng trống phía trước hơi hẹp, robot nên giảm tốc.",
+        "Phía trước không đủ khoảng trống để đi qua an toàn.",
+    ),
+    "q15": ("Phía trước tiếp tục là lối đi.", "Phía trước là một khúc cua trái.", "Phía trước là một khúc cua phải.", "Phía trước là lối cụt."),
+    "q16": ("Chưa thấy vùng che khuất nguy hiểm.", "Vùng ngay sau vật cản đang bị che khuất.", "Hai bên góc kệ đang bị che khuất."),
+    "q17": ("Lối đi sẽ tiếp tục mở ra phía trước.", "Vật phía trước sẽ lớn dần.", "Khung cảnh sẽ xoay dần sang trái.", "Khung cảnh sẽ xoay dần sang phải."),
+    "q18": ("Mốc hiện tại là khu sạc.", "Mốc hiện tại là khu đóng gói.", "Mốc hiện tại là khu kệ.", "Khu vực hiện tại chưa có mốc rõ ràng."),
+    "q19": ("Có, khu vực này khá dễ nhầm với các nhịp kệ khác.", "Không, khu vực này có đặc điểm dễ nhận ra."),
+    "q20": ("Dừng.", "Đi thẳng và giữ tốc độ hiện tại.", "Cua trái và đi chậm.", "Cua phải và đi chậm.", "Đổi sang đường khác."),
+}
+
+WAREHOUSE_ANSWER_DISTRACTORS: dict[str, tuple[str, ...]] = {
+    "q01": ("Robot đang lùi chậm.", "Robot vừa bắt đầu tăng tốc.", "Robot đang giảm tốc.", "Robot đang xoay tại chỗ.", "Robot đang dừng lại."),
+    "q02": ("Robot đang đi chếch trái.", "Robot đang đi chếch phải.", "Robot đang xoay trái tại chỗ.", "Robot đang xoay phải tại chỗ.", "Robot đang lùi thẳng."),
+    "q03": ("Tốc độ đang tăng nhẹ.", "Tốc độ đang tăng nhanh.", "Tốc độ đang giảm nhẹ.", "Tốc độ đang giảm nhanh.", "Tốc độ đang dao động."),
+    "q04": ("Phía trước chỉ bị che một phần.", "Phía trước bị chắn ở bên trái.", "Phía trước bị chắn ở chính giữa.", "Phía trước bị chắn ở bên phải.", "Tầm nhìn phía trước đang mở rộng.", "Tầm nhìn phía trước đang thu hẹp."),
+    "q05": ("Có một vật đang lớn chậm ở bên trái.", "Có một vật đang lớn nhanh ở chính giữa.", "Có một vật đang lớn ở bên phải.", "Vật phía trước đang nhỏ dần.", "Kích thước vật phía trước gần như không đổi.", "Chỉ có mặt kệ đang trôi ngang."),
+    "q06": ("Vật đó đang đi sang trái.", "Vật đó đang đi sang phải.", "Vật đó đang tiến lại gần.", "Vật đó đang đi ra xa.", "Chuyển động của vật chưa rõ ràng."),
+    "q07": ("Chưa có vật cản gần.", "Vật cản nằm hơi lệch trái.", "Vật cản nằm hơi lệch phải.", "Có vật cản ở cả hai bên.", "Vật cản đang ở rất gần chính giữa."),
+    "q08": ("Có nguy cơ va chạm ở bên trái.", "Có nguy cơ va chạm ở chính giữa.", "Có nguy cơ va chạm ở bên phải.", "Chưa có nguy cơ trong vài giây tới.", "Khoảng trống phía trước đang tăng.", "Nguy cơ đang giảm dần."),
+    "q09": ("Đi tiếp nhưng giảm nhẹ tốc độ.", "Đi tiếp và tăng tốc.", "Giữ nguyên tốc độ.", "Dừng ngay.", "Lệch sang trái rồi đi tiếp.", "Lệch sang phải rồi đi tiếp."),
+    "q10": ("Giữ nguyên hướng hiện tại.", "Né nhẹ sang trái.", "Né nhẹ sang phải.", "Lùi lại trước khi né.", "Dừng lại, chưa chọn hướng né."),
+    "q11": ("Lối đi đang rộng ra bên trái.", "Lối đi đang rộng ra bên phải.", "Lối đi đang hẹp ở chính giữa.", "Chiều rộng lối đi thay đổi không đáng kể.", "Lối đi sắp mở rộng trở lại."),
+    "q12": ("Robot đang sát mép trái.", "Robot đang sát mép phải.", "Robot đang trở về giữa lối.", "Robot đang đổi từ lệch trái sang lệch phải.", "Độ lệch hiện chưa rõ."),
+    "q13": ("Có người ở xa đang đứng yên.", "Có người đang đi từ trái sang phải.", "Có người đang đi từ phải sang trái.", "Có người đang đi ra xa.", "Có người đang tiến lại gần."),
+    "q14": (
+        "Khoảng trống bên trái rộng hơn.",
+        "Khoảng trống bên phải rộng hơn.",
+        "Robot nên giữ gần giữa lối đi.",
+        "Robot cần chờ lối phía trước mở ra.",
+        "Chưa đủ quan sát để đánh giá bề rộng phía trước.",
+    ),
+    "q15": ("Phía trước có ngã rẽ trái.", "Phía trước có ngã rẽ phải.", "Phía trước là ngã tư.", "Khúc cua phía trước chưa nhìn rõ.", "Lối đi phía trước đang mở rộng."),
+    "q16": ("Góc trái phía trước đang bị che khuất.", "Góc phải phía trước đang bị che khuất.", "Phía sau người đi bộ đang bị che khuất.", "Phía sau thùng hàng đang bị che khuất.", "Các khe giữa hai nhịp kệ đang bị che khuất."),
+    "q17": ("Vật phía trước sẽ trôi sang trái.", "Vật phía trước sẽ trôi sang phải.", "Lối đi sẽ hẹp lại.", "Lối đi sẽ rộng ra.", "Một người sẽ đi ngang qua phía trước."),
+    "q18": ("Mốc hiện tại là biển chữ trên kệ.", "Mốc hiện tại là ô màu trên kệ.", "Mốc hiện tại là vạch vàng dưới sàn.", "Mốc hiện tại là pad trắng dưới sàn.", "Các mốc hiện tại khá giống nhau."),
+    "q19": ("Khu vực này dễ nhầm vì các kệ lặp lại.", "Khu vực này dễ nhận nhờ biển chữ.", "Khu vực này dễ nhận nhờ ô màu.", "Khu vực này dễ nhận nhờ pad sàn.", "Cần thêm quan sát để phân biệt khu vực.", "Khu vực này không giống đoạn vừa đi qua."),
+    "q20": ("Đi chậm và giữ giữa lối.", "Giảm tốc rồi dừng.", "Đi thẳng rồi lệch trái.", "Đi thẳng rồi lệch phải.", "Chờ thêm một quan sát.", "Tiếp tục nhưng giữ khoảng cách."),
+}
+
+
+def answer_candidates(question_id: str) -> tuple[str, ...]:
+    canonical = tuple(
+        dict.fromkeys(
+            WAREHOUSE_ANSWER_CANDIDATES.get(question_id, ())
+            + WAREHOUSE_ANSWER_DISTRACTORS.get(question_id, ())
+        )
+    )
+    variants: list[str] = []
+    for answer in canonical:
+        plain = answer.rstrip(".")
+        lowered = plain[:1].lower() + plain[1:]
+        variants.extend(
+            (
+                answer,
+                f"Hiện tại, {lowered}.",
+                f"Quan sát cho thấy {lowered}.",
+                f"Dấu hiệu gần nhất cho thấy {lowered}.",
+                f"Trong vài khung hình vừa qua, {lowered}.",
+            )
+        )
+    return tuple(dict.fromkeys(variants))
+
+
+def expanded_answer_bank() -> tuple[str, ...]:
+    """Build a dense, fixed semantic answer corpus for the latent map."""
+    return tuple(
+        dict.fromkeys(
+            answer
+            for question_id in WAREHOUSE_ANSWER_CANDIDATES
+            for answer in answer_candidates(question_id)
+        )
+    )
+
+
+def answer_observation_ambiguity(
+    question_id: str, snapshot: dict[str, Any]
+) -> float:
+    """Estimate semantic ambiguity from proximity to observed decision bands."""
+    linear = abs(float(snapshot.get("linear_x", 0.0)))
+    angular = abs(float(snapshot.get("angular_z", 0.0)))
+    clearance = float(snapshot.get("front_clearance", math.inf))
+    behavior = snapshot.get("behavior_decision") or {}
+
+    def band(value: float, threshold: float, width: float) -> float:
+        return max(0.0, 1.0 - abs(value - threshold) / max(width, 1.0e-6))
+
+    if question_id in {"q01", "q03"}:
+        return max(band(linear, 0.03, 0.05), band(linear, 0.22, 0.10))
+    if question_id in {"q02", "q10", "q12", "q15", "q20"}:
+        return band(angular, 0.12, 0.10)
+    if question_id in {"q04", "q05", "q06", "q07", "q11", "q14", "q16", "q17"}:
+        if not math.isfinite(clearance):
+            return 0.15
+        return max(band(clearance, 4.0, 0.9), band(clearance, 1.2, 0.45))
+    if question_id in {"q08", "q09"}:
+        if str(behavior.get("decision", "PASS")) in {"WAIT", "REPLAN"}:
+            return 0.35
+        if linear > 0.03 and math.isfinite(clearance):
+            return band(clearance / linear, 3.0, 1.5)
+        return 0.2
+    if question_id == "q13":
+        speed = float(behavior.get("predicted_speed_mps", 0.0))
+        return band(speed, 0.08, 0.08)
+    return 0.25
+
+
+@functools.lru_cache(maxsize=16)
+def dashboard_font(pixel_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load a Unicode font for Vietnamese dashboard text."""
+    candidates = (
+        os.environ.get("VJEPA_DASHBOARD_FONT", ""),
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    )
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return ImageFont.truetype(candidate, pixel_size)
+    return ImageFont.load_default(size=pixel_size)
+
+
+def latent_evidence_profile(question_id: str) -> str:
+    """Select which real latent evidence is relevant to the active question."""
+    if question_id in {"q01", "q02", "q03", "q11", "q12"}:
+        return "temporal_motion"
+    if question_id in {"q08", "q09", "q10", "q15", "q17", "q20"}:
+        return "future_rollout"
+    if question_id in {"q18", "q19"}:
+        return "localization_match"
+    return "current_observation"
+
+
 LOW_LATENCY_IMAGE_QOS = QoSProfile(
     history=HistoryPolicy.KEEP_LAST,
     depth=1,
@@ -248,6 +403,7 @@ class LocalizationDashboardNode(Node):
         self.vjepa_trail: deque[tuple[float, float]] = deque(maxlen=1200)
         self.entities: tuple[EntityPose, ...] = ()
         self.current_truth: PoseSample | None = None
+        self.stream_start_timestamp: float | None = None
         self.aligned_truth: PoseSample | None = None
         self.raw_vjepa_pose: PoseSample | None = None
         self.vjepa_pose: PoseSample | None = None
@@ -269,7 +425,16 @@ class LocalizationDashboardNode(Node):
         self.camera_bgr: np.ndarray | None = None
         self.camera_timestamp = 0.0
         self.query_latent: np.ndarray | None = None
+        self.query_latent_trail: deque[np.ndarray] = deque(maxlen=12)
         self.nav_status: dict[str, Any] = {}
+        self.behavior_decision: dict[str, Any] = {
+            "decision": "PASS",
+            "reason": "waiting for predictive person planner",
+            "person_id": "none",
+            "scenario": "normal_driving",
+        }
+        self.mission_state: dict[str, Any] = {"state": "WAITING"}
+        self.latent_prediction: dict[str, Any] = {}
         self.astar_plan: tuple[tuple[float, float], ...] = ()
         self.astar_plan_received = -math.inf
         self.nav_goal_active = {
@@ -290,6 +455,15 @@ class LocalizationDashboardNode(Node):
         )
         self.create_subscription(
             String, "/nav/localization_status", self._on_nav_status, 20
+        )
+        self.create_subscription(
+            String, "/warehouse/behavior_decision", self._on_behavior_decision, 20
+        )
+        self.create_subscription(
+            String, "/warehouse/mission_state", self._on_mission_state, 20
+        )
+        self.create_subscription(
+            String, "/vjepa/latent_prediction", self._on_latent_prediction, 20
         )
         self.create_subscription(NavPath, "/plan", self._on_plan, 10)
         # The controller follows this rounded A* path. It arrives just after
@@ -377,6 +551,11 @@ class LocalizationDashboardNode(Node):
         if truth is None:
             return
         with self.lock:
+            if self.stream_start_timestamp is None:
+                self.stream_start_timestamp = timestamp
+            elif timestamp < self.stream_start_timestamp:
+                # A restarted Gazebo stream starts a fresh live QA rotation.
+                self.stream_start_timestamp = timestamp
             self.truth_history.append(truth)
             self.current_truth = truth
             if (
@@ -521,6 +700,7 @@ class LocalizationDashboardNode(Node):
             return
         with self.lock:
             self.query_latent = latent
+            self.query_latent_trail.append(latent.copy())
 
     def _on_nav_status(self, message: String) -> None:
         try:
@@ -529,6 +709,30 @@ class LocalizationDashboardNode(Node):
             return
         with self.lock:
             self.nav_status = value
+
+    def _on_behavior_decision(self, message: String) -> None:
+        try:
+            value = json.loads(message.data)
+        except json.JSONDecodeError:
+            return
+        with self.lock:
+            self.behavior_decision = value
+
+    def _on_mission_state(self, message: String) -> None:
+        try:
+            value = json.loads(message.data)
+        except json.JSONDecodeError:
+            value = {"state": message.data.strip() or "WAITING"}
+        with self.lock:
+            self.mission_state = value
+
+    def _on_latent_prediction(self, message: String) -> None:
+        try:
+            value = json.loads(message.data)
+        except json.JSONDecodeError:
+            return
+        with self.lock:
+            self.latent_prediction = value
 
     def _on_plan(self, message: NavPath) -> None:
         points = tuple(
@@ -601,10 +805,16 @@ class LocalizationDashboardNode(Node):
             linear = self.command_linear
             debug = dict(self.debug)
             nav_status = dict(self.nav_status)
+            behavior_decision = dict(self.behavior_decision)
+            mission_state = dict(self.mission_state)
+            latent_prediction = dict(self.latent_prediction)
             camera_bgr = None if self.camera_bgr is None else self.camera_bgr.copy()
             camera_timestamp = self.camera_timestamp
             query_latent = (
                 None if self.query_latent is None else self.query_latent.copy()
+            )
+            query_latent_trail = tuple(
+                item.copy() for item in self.query_latent_trail
             )
             # This demo computes A* once per goal, so /plan is intentionally
             # not republished. Keep that path for the action's whole lifetime;
@@ -618,6 +828,11 @@ class LocalizationDashboardNode(Node):
             snapshot = {
                 "sequence": self.sequence,
                 "current_truth": current,
+                "stream_elapsed_s": (
+                    max(0.0, current.timestamp - self.stream_start_timestamp)
+                    if current is not None and self.stream_start_timestamp is not None
+                    else 0.0
+                ),
                 "aligned_truth": aligned,
                 "vjepa": prediction,
                 "raw_vjepa": raw_prediction,
@@ -632,6 +847,7 @@ class LocalizationDashboardNode(Node):
                 "truth_trail": tuple(self.truth_trail),
                 "vjepa_trail": tuple(self.vjepa_trail),
                 "astar_plan": astar_plan,
+                "front_clearance": clearance,
                 "top1_similarity": debug.get("top1_similarity"),
                 "confidence_margin": debug.get("confidence_margin"),
                 "tracking_state": debug.get("tracking_state", "WAITING"),
@@ -651,9 +867,13 @@ class LocalizationDashboardNode(Node):
                 "nav_uses_gazebo_truth": nav_status.get("uses_gazebo_truth"),
                 "nav_planner": nav_status.get("planner", "NAVFN_ASTAR"),
                 "nav_correction_m": nav_status.get("correction_m"),
+                "behavior_decision": behavior_decision,
+                "mission_state": mission_state,
+                "latent_prediction": latent_prediction,
                 "camera_bgr": camera_bgr,
                 "camera_timestamp": camera_timestamp,
                 "query_latent": query_latent,
+                "query_latent_trail": query_latent_trail,
                 "source_id": debug.get("source_id"),
                 "latent_dimension": debug.get("latent_dimension"),
                 "compute_host": debug.get("compute_host", "waiting"),
@@ -670,7 +890,7 @@ class LocalizationDashboardNode(Node):
                 agv_yaw=current.yaw,
                 entities=entities,
                 lidar_clearance_m=clearance,
-                detection_distance_m=2.2,
+                detection_distance_m=DASHBOARD_OBSTACLE_DISTANCE_M,
                 front_half_angle_rad=0.65,
             )
             snapshot["area"] = self.regions.describe(current.x, current.y)
@@ -767,8 +987,19 @@ class LatentProjector:
         bounds: tuple[int, int, int, int],
         query_latent: np.ndarray | None,
         source_id: Any,
+        *,
+        question_id: str,
+        query_latent_trail: tuple[np.ndarray, ...] = (),
+        latent_prediction: dict[str, Any] | None = None,
     ) -> None:
         x, y, width, height = bounds
+        profile = latent_evidence_profile(question_id)
+        profile_titles = {
+            "temporal_motion": "TEMPORAL MOTION",
+            "future_rollout": "FUTURE z(t+1..3)",
+            "localization_match": "LOCALIZATION MATCH",
+            "current_observation": "CURRENT OBSERVATION",
+        }
         cv2.rectangle(canvas, (x, y), (x + width, y + height), (244, 244, 240), -1)
         cv2.rectangle(canvas, (x, y), (x + width, y + height), (92, 98, 108), 1)
         for point in self.map_points:
@@ -782,7 +1013,7 @@ class LatentProjector:
             )
         cv2.putText(
             canvas,
-            "V-JEPA LATENT SPACE (PCA)",
+            f"V-JEPA LATENT - {question_id.upper()} - {profile_titles[profile]}",
             (x + 16, y + 27),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.53,
@@ -793,11 +1024,34 @@ class LatentProjector:
         plot = (x + 18, y + 40, width - 36, height - 62)
         instant = self.project(query_latent)
         stable = self.selected(source_id)
+        if profile == "temporal_motion":
+            trail = [
+                projected
+                for projected in (
+                    self.project(np.asarray(item, dtype=np.float32))
+                    for item in query_latent_trail
+                )
+                if projected is not None
+            ]
+            if len(trail) >= 2:
+                pixels = np.asarray(
+                    [self.to_pixel(point, *plot) for point in trail],
+                    dtype=np.int32,
+                )
+                cv2.polylines(
+                    canvas, [pixels], False, (175, 110, 65), 2, cv2.LINE_AA
+                )
         if instant is not None:
             cv2.circle(canvas, self.to_pixel(instant, *plot), 7, (45, 45, 235), -1, cv2.LINE_AA)
-        if stable is not None:
+        if stable is not None and profile in {
+            "current_observation",
+            "localization_match",
+        }:
             cv2.circle(canvas, self.to_pixel(stable, *plot), 7, (235, 90, 35), -1, cv2.LINE_AA)
-        if instant is not None and stable is not None:
+        if instant is not None and stable is not None and profile in {
+            "current_observation",
+            "localization_match",
+        }:
             cv2.line(
                 canvas,
                 self.to_pixel(instant, *plot),
@@ -806,6 +1060,576 @@ class LatentProjector:
                 1,
                 cv2.LINE_AA,
             )
+        if profile == "future_rollout" and instant is not None:
+            rollout_colors = {
+                1: (35, 170, 235),
+                2: (55, 180, 75),
+                3: (200, 85, 155),
+            }
+            previous = instant
+            for item in (latent_prediction or {}).get("horizons", []):
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    step = int(item["step"])
+                    dimension = int(item["latent_dimension"])
+                    packed = base64.b64decode(
+                        str(item["predicted_latent_f16_b64"]), validate=True
+                    )
+                    vector = np.frombuffer(packed, dtype="<f2").astype(np.float32)
+                    if item.get("latent_encoding") != "float16_base64":
+                        continue
+                    if vector.size != dimension:
+                        continue
+                except (KeyError, TypeError, ValueError):
+                    continue
+                predicted = self.project(vector)
+                if predicted is None:
+                    continue
+                color = rollout_colors.get(step, (90, 90, 90))
+                cv2.arrowedLine(
+                    canvas,
+                    self.to_pixel(previous, *plot),
+                    self.to_pixel(predicted, *plot),
+                    color,
+                    2,
+                    cv2.LINE_AA,
+                    tipLength=0.18,
+                )
+                pixel = self.to_pixel(predicted, *plot)
+                cv2.circle(canvas, pixel, 7, color, -1, cv2.LINE_AA)
+                cv2.putText(
+                    canvas,
+                    f"t+{step}",
+                    (pixel[0] + 8, pixel[1] - 7),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.38,
+                    color,
+                    1,
+                    cv2.LINE_AA,
+                )
+                previous = predicted
+
+
+def normalize_embedding(vector: np.ndarray) -> np.ndarray:
+    value = np.asarray(vector, dtype=np.float32).reshape(-1)
+    norm = float(np.linalg.norm(value))
+    return value / norm if norm > 1.0e-8 else value.copy()
+
+
+class SemanticTextEncoder:
+    """Encode Vietnamese QA text, with a deterministic offline fallback.
+
+    The preferred backend is a real multilingual sentence encoder. Feature
+    hashing remains available so the controlled demo still starts without a
+    network/cache; it is never presented as an official VL-JEPA checkpoint.
+    """
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        self.requested_backend = str(config.get("backend", "auto")).lower()
+        self.checkpoint = str(
+            config.get("checkpoint", "intfloat/multilingual-e5-small")
+        )
+        self.device_name = str(config.get("device", "cpu"))
+        self.allow_download = bool(config.get("allow_download", True))
+        self.dimension = int(config.get("fallback_dimension", 384))
+        self.backend = "uninitialized"
+        self._tokenizer: Any | None = None
+        self._model: Any | None = None
+        self._torch: Any | None = None
+        self._cache: dict[tuple[str, str], np.ndarray] = {}
+
+    def _load(self) -> None:
+        if self.backend != "uninitialized":
+            return
+        if self.requested_backend == "hash":
+            self.backend = "feature_hash"
+            return
+        try:
+            import torch
+            from transformers import AutoModel, AutoTokenizer
+
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self.checkpoint,
+                local_files_only=not self.allow_download,
+            )
+            self._model = AutoModel.from_pretrained(
+                self.checkpoint,
+                local_files_only=not self.allow_download,
+            )
+            self._model.to(torch.device(self.device_name))
+            self._model.eval()
+            for parameter in self._model.parameters():
+                parameter.requires_grad_(False)
+            self._torch = torch
+            self.dimension = int(self._model.config.hidden_size)
+            self.backend = "multilingual_e5"
+        except (ImportError, OSError, RuntimeError, ValueError):
+            self.backend = "feature_hash"
+            self._tokenizer = None
+            self._model = None
+            self._torch = None
+
+    def _hash_encode(self, text: str, kind: str) -> np.ndarray:
+        normalized = unicodedata.normalize("NFC", text.strip().lower())
+        padded = f" {kind}:{normalized} "
+        features = normalized.split()
+        features.extend(
+            padded[index : index + size]
+            for size in (2, 3, 4)
+            for index in range(max(0, len(padded) - size + 1))
+        )
+        vector = np.zeros(self.dimension, dtype=np.float32)
+        for feature in features:
+            digest = hashlib.blake2b(
+                feature.encode("utf-8"), digest_size=8, person=b"qa-latent"
+            ).digest()
+            value = int.from_bytes(digest, "little")
+            vector[value % self.dimension] += 1.0 if value & 1 else -1.0
+        return normalize_embedding(vector)
+
+    def _model_encode(self, texts: list[str], kind: str) -> np.ndarray:
+        assert self._tokenizer is not None
+        assert self._model is not None
+        assert self._torch is not None
+        prefix = "query: " if kind == "query" else "passage: "
+        batches: list[np.ndarray] = []
+        for offset in range(0, len(texts), 64):
+            encoded = self._tokenizer(
+                [prefix + text for text in texts[offset : offset + 64]],
+                padding=True,
+                truncation=True,
+                max_length=128,
+                return_tensors="pt",
+            )
+            encoded = {
+                key: value.to(self.device_name) for key, value in encoded.items()
+            }
+            with self._torch.inference_mode():
+                output = self._model(**encoded).last_hidden_state
+            mask = encoded["attention_mask"].unsqueeze(-1).to(output.dtype)
+            pooled = (output * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1.0)
+            values = pooled.detach().float().cpu().numpy().astype(np.float32)
+            batches.append(
+                np.stack([normalize_embedding(row) for row in values])
+            )
+        return np.concatenate(batches, axis=0)
+
+    def encode(self, texts: tuple[str, ...], *, kind: str) -> np.ndarray:
+        self._load()
+        result: list[np.ndarray | None] = [None] * len(texts)
+        missing_texts: list[str] = []
+        missing_indices: list[int] = []
+        for index, text in enumerate(texts):
+            key = (kind, text)
+            cached = self._cache.get(key)
+            if cached is None:
+                missing_texts.append(text)
+                missing_indices.append(index)
+            else:
+                result[index] = cached
+        if missing_texts:
+            if self.backend == "multilingual_e5":
+                encoded = self._model_encode(missing_texts, kind)
+            else:
+                encoded = np.stack(
+                    [self._hash_encode(text, kind) for text in missing_texts]
+                )
+            for index, text, vector in zip(
+                missing_indices, missing_texts, encoded, strict=True
+            ):
+                self._cache[(kind, text)] = vector
+                result[index] = vector
+        return np.stack([value for value in result if value is not None])
+
+
+class QueryConditionedAnswerLatent:
+    """Controlled-demo approximation of VL-JEPA answer-embedding inference."""
+
+    def __init__(
+        self,
+        config: dict[str, Any],
+        *,
+        encoder: SemanticTextEncoder | None = None,
+    ) -> None:
+        self.encoder = encoder or SemanticTextEncoder(config)
+        self.oracle_weight = float(config.get("oracle_weight", 0.92))
+        self.uncertain_oracle_weight = float(
+            config.get("uncertain_oracle_weight", 0.20)
+        )
+        self.query_weight = float(config.get("query_weight", 0.05))
+        self.visual_weight = float(config.get("visual_weight", 0.03))
+        total = self.oracle_weight + self.query_weight + self.visual_weight
+        if total <= 0.0:
+            raise ValueError("answer latent weights must have a positive sum")
+        self.oracle_weight /= total
+        self.query_weight /= total
+        self.visual_weight /= total
+        self.selective_threshold = float(
+            config.get("selective_decode_cosine", 0.995)
+        )
+        self.manifold_neighbors = max(3, int(config.get("manifold_neighbors", 12)))
+        self.manifold_temperature = max(
+            1.0e-3, float(config.get("manifold_temperature", 0.035))
+        )
+        self.manifold_iterations = max(
+            100, int(config.get("manifold_iterations", 700))
+        )
+        self.manifold_learning_rate = max(
+            1.0, float(config.get("manifold_learning_rate", 80.0))
+        )
+        self.display_spring_stiffness = max(
+            1.0, float(config.get("display_spring_stiffness", 30.0))
+        )
+        self.display_spring_damping = max(
+            1.0, float(config.get("display_spring_damping", 11.0))
+        )
+        self.previous: dict[str, np.ndarray] = {}
+        self.previous_answer: dict[str, str] = {}
+        self.trails: dict[str, deque[np.ndarray]] = {}
+        self.projections: dict[tuple[int, int], np.ndarray] = {}
+        self.cached_report: dict[tuple[str, int], dict[str, Any]] = {}
+        self.answer_space_embeddings: np.ndarray | None = None
+        self.answer_space_points: np.ndarray | None = None
+        self.answer_space_texts: tuple[str, ...] = ()
+        self.answer_space_lower: np.ndarray | None = None
+        self.answer_space_upper: np.ndarray | None = None
+
+    def _ensure_answer_space(self) -> None:
+        if self.answer_space_points is not None:
+            return
+        texts = expanded_answer_bank()
+        embeddings = self.encoder.encode(texts, kind="answer")
+        count = len(embeddings)
+        neighbors = min(self.manifold_neighbors, count - 1)
+        similarities = embeddings @ embeddings.T
+        np.fill_diagonal(similarities, -np.inf)
+        nearest = np.argpartition(similarities, -neighbors, axis=1)[:, -neighbors:]
+        rows = np.arange(count)[:, None]
+        local_similarity = similarities[rows, nearest]
+        weights = np.exp(
+            (local_similarity - local_similarity.max(axis=1, keepdims=True))
+            / self.manifold_temperature
+        ).astype(np.float64)
+        probability = np.zeros((count, count), dtype=np.float64)
+        probability[rows, nearest] = weights
+        probability += probability.T
+        probability /= max(float(probability.sum()), 1.0e-12)
+
+        rng = np.random.default_rng(20260826)
+        points = rng.normal(0.0, 1.0e-4, (count, 2))
+        velocity = np.zeros_like(points)
+        exaggeration_steps = min(120, self.manifold_iterations // 3)
+        for iteration in range(self.manifold_iterations):
+            difference = points[:, None, :] - points[None, :, :]
+            squared_distance = np.sum(difference * difference, axis=2)
+            student = 1.0 / (1.0 + squared_distance)
+            np.fill_diagonal(student, 0.0)
+            low_probability = student / max(float(student.sum()), 1.0e-12)
+            exaggeration = 8.0 if iteration < exaggeration_steps else 1.0
+            force = (exaggeration * probability - low_probability) * student
+            gradient = 4.0 * (
+                force.sum(axis=1, keepdims=True) * points - force @ points
+            )
+            momentum = 0.5 if iteration < exaggeration_steps else 0.8
+            velocity = (
+                momentum * velocity - self.manifold_learning_rate * gradient
+            )
+            points += velocity
+            points -= points.mean(axis=0, keepdims=True)
+            if iteration in {exaggeration_steps - 1, self.manifold_iterations // 2}:
+                velocity *= 0.0
+        points = points.astype(np.float32)
+        for axis in range(2):
+            pivot = int(np.argmax(np.abs(points[:, axis])))
+            if points[pivot, axis] < 0.0:
+                points[:, axis] *= -1.0
+        points /= np.maximum(points.std(axis=0, keepdims=True), 1.0e-6)
+        self.answer_space_embeddings = embeddings
+        self.answer_space_points = points
+        self.answer_space_texts = texts
+        lower = np.quantile(self.answer_space_points, 0.01, axis=0)
+        upper = np.quantile(self.answer_space_points, 0.99, axis=0)
+        padding = np.maximum((upper - lower) * 0.10, 1.0e-3)
+        self.answer_space_lower = lower - padding
+        self.answer_space_upper = upper + padding
+
+    def _project_answer_space(self, embeddings: np.ndarray) -> np.ndarray:
+        self._ensure_answer_space()
+        assert self.answer_space_embeddings is not None
+        assert self.answer_space_points is not None
+        values = np.asarray(embeddings, dtype=np.float32)
+        similarities = values @ self.answer_space_embeddings.T
+        neighbors = min(self.manifold_neighbors, len(self.answer_space_embeddings))
+        nearest = np.argpartition(similarities, -neighbors, axis=1)[:, -neighbors:]
+        rows = np.arange(len(values))[:, None]
+        local_similarity = similarities[rows, nearest]
+        weights = np.exp(
+            (local_similarity - local_similarity.max(axis=1, keepdims=True))
+            / self.manifold_temperature
+        )
+        weights /= np.maximum(weights.sum(axis=1, keepdims=True), 1.0e-8)
+        return np.sum(
+            self.answer_space_points[nearest] * weights[:, :, None], axis=1
+        )
+
+    def _nearest_answer_space_point(
+        self, embedding: np.ndarray
+    ) -> tuple[np.ndarray, int]:
+        self._ensure_answer_space()
+        assert self.answer_space_embeddings is not None
+        assert self.answer_space_points is not None
+        similarities = self.answer_space_embeddings @ normalize_embedding(embedding)
+        index = int(np.argmax(similarities))
+        return self.answer_space_points[index].copy(), index
+
+    def _visual_projection(
+        self, visual: np.ndarray | None, output_dimension: int
+    ) -> np.ndarray:
+        if visual is None:
+            return np.zeros(output_dimension, dtype=np.float32)
+        value = np.asarray(visual, dtype=np.float32).reshape(-1)
+        if value.size == 0 or not np.isfinite(value).all():
+            return np.zeros(output_dimension, dtype=np.float32)
+        key = (value.size, output_dimension)
+        projection = self.projections.get(key)
+        if projection is None:
+            rng = np.random.default_rng(0x564C4A45 + value.size)
+            projection = rng.standard_normal(key, dtype=np.float32)
+            projection /= math.sqrt(float(value.size))
+            self.projections[key] = projection
+        return normalize_embedding(normalize_embedding(value) @ projection)
+
+    def infer(
+        self,
+        *,
+        question_id: str,
+        question: str,
+        policy_answer: str,
+        stabilized_answer: str | None = None,
+        visual_embedding: np.ndarray | None,
+        sequence: int,
+        ambiguity: float = 0.0,
+    ) -> dict[str, Any]:
+        cache_key = (question_id, int(sequence))
+        cached = self.cached_report.get(cache_key)
+        if cached is not None:
+            return cached
+        candidates = tuple(
+            dict.fromkeys(
+                (policy_answer,) + answer_candidates(question_id)
+            )
+        )
+        candidate_vectors = self.encoder.encode(candidates, kind="answer")
+        stabilized_text = stabilized_answer or policy_answer
+        stabilized_vector = self.encoder.encode(
+            (stabilized_text,), kind="answer"
+        )[0]
+        query_vector = self.encoder.encode((question,), kind="query")[0]
+        visual_vector = self._visual_projection(
+            visual_embedding, candidate_vectors.shape[1]
+        )
+        ambiguity = min(1.0, max(0.0, float(ambiguity)))
+        effective_oracle = (
+            (1.0 - ambiguity) * self.oracle_weight
+            + ambiguity * self.uncertain_oracle_weight
+        )
+        non_oracle = max(0.0, 1.0 - effective_oracle)
+        query_visual_total = max(self.query_weight + self.visual_weight, 1.0e-8)
+        effective_query = non_oracle * self.query_weight / query_visual_total
+        effective_visual = non_oracle * self.visual_weight / query_visual_total
+        predicted = normalize_embedding(
+            effective_oracle * candidate_vectors[0]
+            + effective_query * query_vector
+            + effective_visual * visual_vector
+        )
+        similarities = candidate_vectors @ predicted
+        selected_index = int(np.argmax(similarities))
+
+        previous = self.previous.get(question_id)
+        semantic_cosine = (
+            float(np.dot(previous, predicted)) if previous is not None else None
+        )
+        selected_answer = candidates[selected_index]
+        decoded = (
+            previous is None
+            or semantic_cosine is None
+            or semantic_cosine < self.selective_threshold
+            or self.previous_answer.get(question_id) != selected_answer
+        )
+        self.previous[question_id] = predicted.copy()
+        self.previous_answer[question_id] = selected_answer
+        trail = self.trails.setdefault(question_id, deque(maxlen=20))
+        trail.append(predicted.copy())
+        self._ensure_answer_space()
+        assert self.answer_space_points is not None
+        assert self.answer_space_lower is not None
+        assert self.answer_space_upper is not None
+        answer_space_points = self.answer_space_points.copy()
+        candidate_points = self._project_answer_space(candidate_vectors)
+        predicted_point = self._project_answer_space(predicted[None, :])[0]
+        stabilized_point, stabilized_anchor_index = (
+            self._nearest_answer_space_point(stabilized_vector)
+        )
+        trajectory_points = self._project_answer_space(np.asarray(trail))
+        report = {
+            "question_id": question_id,
+            "query_embedding": query_vector,
+            "predicted_embedding": predicted,
+            "candidate_embeddings": candidate_vectors,
+            "candidate_answers": candidates,
+            "candidate_similarities": similarities,
+            "selected_index": selected_index,
+            "selected_answer": selected_answer,
+            "instant_reference_answer": policy_answer,
+            "stabilized_answer": stabilized_text,
+            "stabilized_embedding": stabilized_vector,
+            "confidence": float(similarities[selected_index]),
+            "prediction_matches_stabilized": selected_answer == stabilized_text,
+            "prediction_matches_instant": selected_answer == policy_answer,
+            "observation_ambiguity": ambiguity,
+            "effective_oracle_weight": effective_oracle,
+            "trajectory": tuple(item.copy() for item in trail),
+            "answer_space_points_2d": answer_space_points,
+            "answer_space_answers": self.answer_space_texts,
+            "candidate_points_2d": candidate_points,
+            "predicted_point_2d": predicted_point,
+            "stabilized_point_2d": stabilized_point,
+            "stabilized_anchor_index": stabilized_anchor_index,
+            "trajectory_points_2d": trajectory_points,
+            "answer_space_lower_2d": self.answer_space_lower.copy(),
+            "answer_space_upper_2d": self.answer_space_upper.copy(),
+            "display_spring_stiffness": self.display_spring_stiffness,
+            "display_spring_damping": self.display_spring_damping,
+            "semantic_cosine": semantic_cosine,
+            "decoded": decoded,
+            "backend": self.encoder.backend,
+            "provenance": "vjepa_visual_plus_query_conditioned_policy_assisted_answer_embedding",
+        }
+        self.cached_report = {cache_key: report}
+        return report
+
+
+class AnswerLatentRenderer:
+    """Render predicted and candidate answer embeddings for the active query."""
+
+    def __init__(self) -> None:
+        self.displayed_stabilized: np.ndarray | None = None
+        self.stabilized_velocity = np.zeros(2, dtype=np.float32)
+        self.last_animation_time: float | None = None
+
+    def _animate_stabilized(
+        self, target: np.ndarray, report: dict[str, Any]
+    ) -> np.ndarray:
+        now = time.monotonic()
+        if self.displayed_stabilized is None or self.last_animation_time is None:
+            self.displayed_stabilized = target.copy()
+            self.stabilized_velocity *= 0.0
+            self.last_animation_time = now
+            return self.displayed_stabilized.copy()
+        dt = min(0.05, max(1.0 / 240.0, now - self.last_animation_time))
+        self.last_animation_time = now
+        stiffness = float(report.get("display_spring_stiffness", 30.0))
+        damping = float(report.get("display_spring_damping", 11.0))
+        acceleration = (
+            stiffness * (target - self.displayed_stabilized)
+            - damping * self.stabilized_velocity
+        )
+        self.stabilized_velocity += acceleration.astype(np.float32) * dt
+        self.displayed_stabilized += self.stabilized_velocity * dt
+        if (
+            float(np.linalg.norm(target - self.displayed_stabilized)) < 1.0e-4
+            and float(np.linalg.norm(self.stabilized_velocity)) < 1.0e-4
+        ):
+            self.displayed_stabilized = target.copy()
+            self.stabilized_velocity *= 0.0
+        return self.displayed_stabilized.copy()
+
+    def draw(
+        self,
+        canvas: np.ndarray,
+        bounds: tuple[int, int, int, int],
+        report: dict[str, Any] | None,
+        question_id: str,
+    ) -> None:
+        x, y, width, height = bounds
+        del question_id
+        cv2.rectangle(canvas, (x, y), (x + width, y + height), (244, 244, 240), -1)
+        cv2.rectangle(canvas, (x, y), (x + width, y + height), (92, 98, 108), 1)
+        cv2.putText(
+            canvas,
+            "VL-JEPA ANSWER LATENT SPACE",
+            (x + 16, y + 27),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.53,
+            (45, 48, 54),
+            1,
+            cv2.LINE_AA,
+        )
+        if not report:
+            cv2.putText(
+                canvas,
+                "Waiting for answer embeddings...",
+                (x + 135, y + height // 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (90, 95, 105),
+                1,
+                cv2.LINE_AA,
+            )
+            return
+        space = np.asarray(report["answer_space_points_2d"], dtype=np.float32)
+        predicted = np.asarray(report["predicted_point_2d"], dtype=np.float32)
+        stabilized_target = np.asarray(
+            report["stabilized_point_2d"], dtype=np.float32
+        )
+        stabilized = self._animate_stabilized(stabilized_target, report)
+        trajectory = np.asarray(report["trajectory_points_2d"], dtype=np.float32)
+        lower = np.asarray(report["answer_space_lower_2d"], dtype=np.float32)
+        upper = np.asarray(report["answer_space_upper_2d"], dtype=np.float32)
+        plot = (x + 24, y + 48, width - 48, height - 98)
+
+        def pixel(point: np.ndarray) -> tuple[int, int]:
+            normalized = (point - lower) / np.maximum(upper - lower, 1.0e-8)
+            return (
+                plot[0] + int(np.clip(normalized[0], 0.0, 1.0) * plot[2]),
+                plot[1] + plot[3] - int(np.clip(normalized[1], 0.0, 1.0) * plot[3]),
+            )
+
+        for point in space:
+            center = pixel(point)
+            left, top = center[0] - 3, center[1] - 3
+            right, bottom = center[0] + 4, center[1] + 4
+            roi = canvas[top:bottom, left:right]
+            overlay = roi.copy()
+            cv2.circle(overlay, (3, 3), 2, (115, 121, 126), -1, cv2.LINE_AA)
+            cv2.addWeighted(overlay, 0.30, roi, 0.70, 0.0, dst=roi)
+        # Keep temporal history in report artifacts, but render exactly one
+        # instant prediction marker so the public plot is unambiguous.
+        cv2.circle(canvas, pixel(stabilized), 3, (235, 80, 35), -1, cv2.LINE_AA)
+        cv2.circle(canvas, pixel(predicted), 3, (45, 45, 235), -1, cv2.LINE_AA)
+        legend_y = y + height - 18
+        cv2.circle(canvas, (x + 25, legend_y - 4), 3, (45, 45, 235), -1, cv2.LINE_AA)
+        cv2.putText(
+            canvas,
+            "INSTANT / PREDICTED",
+            (x + 38, legend_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.38,
+            (45, 48, 54),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.circle(canvas, (x + 205, legend_y - 4), 3, (235, 80, 35), -1, cv2.LINE_AA)
+        cv2.putText(
+            canvas, "STABILIZED", (x + 218, legend_y),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (45, 48, 54), 1, cv2.LINE_AA,
+        )
+        cv2.circle(canvas, (x + 345, legend_y - 4), 2, (165, 169, 172), -1, cv2.LINE_AA)
+        cv2.putText(
+            canvas, "ANSWER BANK", (x + 356, legend_y),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (45, 48, 54), 1, cv2.LINE_AA,
+        )
 
 
 class PreparedQA:
@@ -818,15 +1642,85 @@ class PreparedQA:
             raise ValueError("live question list is empty")
         self.interval_sec = float(config.get("interval_sec", 3.5))
         self.stabilize_frames = max(1, int(config.get("stabilize_frames", 2)))
+        self.answer_latent = QueryConditionedAnswerLatent(
+            dict(config.get("answer_latent", {}))
+        )
         self.started = time.monotonic()
         self.last_sequence = -1
+        self.latest_stream_elapsed_s = 0.0
         self.instant: dict[str, str] = {}
         self.stable: dict[str, str] = {}
         self.candidate_key: dict[str, str] = {}
         self.candidate_count: dict[str, int] = {}
+        self.latest_snapshot: dict[str, Any] | None = None
+        self.active_slot: int | None = None
+        self.active_spec: dict[str, Any] | None = None
+        self.active_index = 0
+        self.active_count = len(self.questions)
+
+    @staticmethod
+    def _scope_is_relevant(scope: str, snapshot: dict[str, Any]) -> bool:
+        """Gate a prepared question using current scene and world state."""
+        area = str(snapshot.get("area", "")).lower()
+        linear = abs(float(snapshot.get("linear_x", 0.0)))
+        angular = abs(float(snapshot.get("angular_z", 0.0)))
+        moving = linear >= 0.03 or angular >= 0.05
+        clearance = float(snapshot.get("front_clearance", math.inf))
+        obstacle = snapshot.get("obstacle")
+        has_obstacle = obstacle is not None or (
+            math.isfinite(clearance)
+            and clearance <= DASHBOARD_OBSTACLE_DISTANCE_M
+        )
+        behavior = snapshot.get("behavior_decision") or {}
+        decision = str(behavior.get("decision", "PASS"))
+        occupied = any(
+            bool(item.get("path_occupied"))
+            for item in behavior.get("occupancy", [])
+            if isinstance(item, dict)
+        )
+        person_id = str(behavior.get("person_id", "none"))
+        has_people = bool(
+            snapshot.get("people_ahead")
+            or snapshot.get("nearby_people")
+            or person_id not in {"", "none", "None"}
+        )
+        in_service_area = "sạc" in area or "đóng gói" in area
+        in_aisle = "kệ" in area or "hành lang" in area or "lối đi" in area
+        in_corridor = "hành lang" in area or "lối đi" in area
+        hazard = moving or has_obstacle or occupied or decision in {"WAIT", "REPLAN"}
+
+        relevance = {
+            "always": True,
+            "motion": moving,
+            "navigation": not in_service_area and in_aisle,
+            "approaching_obstacle": has_obstacle and linear >= 0.03,
+            "obstacle": has_obstacle,
+            "hazard": hazard,
+            "avoidance": has_obstacle or angular >= 0.12 or decision in {"WAIT", "REPLAN"},
+            "aisle": in_aisle,
+            "aisle_motion": in_aisle and moving,
+            "people": has_people,
+            "floor_marking": in_service_area or in_corridor,
+            "shelf": "kệ" in area,
+        }
+        return relevance.get(scope, True)
+
+    def _eligible_questions(
+        self, snapshot: dict[str, Any] | None
+    ) -> tuple[dict[str, Any], ...]:
+        if snapshot is None:
+            return self.questions
+        eligible = tuple(
+            spec
+            for spec in self.questions
+            if self._scope_is_relevant(str(spec.get("scope", "always")), snapshot)
+        )
+        return eligible or self.questions
 
     @staticmethod
     def _answer(question_id: str, snapshot: dict[str, Any]) -> tuple[str, str]:
+        if question_id.startswith("q") and question_id[1:].isdigit():
+            return PreparedQA._stream_answer(question_id, snapshot)
         if question_id == "area":
             area = ascii_text(str(snapshot["area"]))
             return area, f"Robot is in {area}."
@@ -845,6 +1739,12 @@ class PreparedQA:
             relation = "ahead" if snapshot["people_ahead"] else "nearby"
             return str(name), f"Worker {number} is {relation}, about {distance:.1f} m away."
         if question_id == "avoidance":
+            behavior = snapshot.get("behavior_decision") or {}
+            decision = str(behavior.get("decision", "PASS"))
+            person = str(behavior.get("person_id", "none"))
+            if person != "none" and decision in {"WAIT", "PASS", "REPLAN"}:
+                reason = ascii_text(str(behavior.get("reason", "")))
+                return f"{decision}:{person}", f"{decision}: {reason}"
             obstacle = snapshot["obstacle"]
             angular = float(snapshot["angular_z"])
             if obstacle is None:
@@ -880,13 +1780,269 @@ class PreparedQA:
                 return "waiting", "Waiting for timestamp-aligned Gazebo truth."
             band = "low" if error < 0.5 else "medium" if error < 1.5 else "high"
             return band, f"V-JEPA differs from Gazebo truth by {error:.2f} m."
+        if question_id == "behavior_decision":
+            behavior = snapshot.get("behavior_decision") or {}
+            decision = str(behavior.get("decision", "WAIT"))
+            person = str(behavior.get("person_id", "none"))
+            reason = ascii_text(str(behavior.get("reason", "no reason received")))
+            return f"{decision}:{person}", f"{decision} for {person}: {reason}"
+        if question_id == "future_occupancy":
+            behavior = snapshot.get("behavior_decision") or {}
+            probability = behavior.get("collision_probability")
+            free_window = behavior.get("predicted_free_space_window_s")
+            ttc = behavior.get("time_to_collision_s")
+            if not isinstance(probability, (int, float)) or not isinstance(
+                free_window, (int, float)
+            ):
+                return "waiting", "Waiting for predicted person occupancy."
+            ttc_text = "none" if not isinstance(ttc, (int, float)) else f"{ttc:.2f}s"
+            occupied = any(
+                bool(item.get("path_occupied"))
+                for item in behavior.get("occupancy", [])
+                if isinstance(item, dict)
+            )
+            key = "occupied" if occupied else "clear"
+            return (
+                key,
+                f"Future path is {key}: risk={probability:.2f}, "
+                f"TTC={ttc_text}, free window={free_window:.2f}s.",
+            )
+        if question_id == "latent_future":
+            prediction = snapshot.get("latent_prediction") or {}
+            horizons = prediction.get("horizons") or []
+            steps = [
+                int(item["step"])
+                for item in horizons
+                if isinstance(item, dict) and "step" in item
+            ]
+            if steps != [1, 2, 3]:
+                return "waiting", "Waiting for V-JEPA z(t+1..3) rollouts."
+            matured = prediction.get("matured_evaluations") or []
+            if matured:
+                mean_cosine = sum(
+                    float(item["cosine_similarity"]) for item in matured
+                ) / len(matured)
+                return (
+                    "rollout_123_evaluated",
+                    "V-JEPA z(t+1), z(t+2), z(t+3) are active; "
+                    f"latest matured cosine={mean_cosine:.3f}.",
+                )
+            return (
+                "rollout_123_pending",
+                "V-JEPA z(t+1), z(t+2), z(t+3) are active; awaiting actual latents.",
+            )
+        if question_id == "mission_state":
+            mission = snapshot.get("mission_state") or {}
+            state = str(mission.get("state", "WAITING"))
+            return state, f"Mission state is {state}."
         return "unsupported", "No prepared answer for this question."
+
+    @staticmethod
+    def _stream_answer(
+        question_id: str, snapshot: dict[str, Any]
+    ) -> tuple[str, str]:
+        """Answer the prepared questions from current streaming evidence.
+
+        This intentionally avoids object/color/timestamp assumptions. A later
+        Storage B/C mission therefore receives answers about its current scene.
+        """
+        obstacle = snapshot.get("obstacle")
+        clearance = float(snapshot.get("front_clearance", math.inf))
+        linear = float(snapshot.get("linear_x", 0.0))
+        angular = float(snapshot.get("angular_z", 0.0))
+        behavior = snapshot.get("behavior_decision") or {}
+        decision = str(behavior.get("decision", "PASS"))
+        people = snapshot.get("people_ahead") or snapshot.get("nearby_people")
+        has_front_obstacle = (
+            obstacle is not None
+            or (
+                math.isfinite(clearance)
+                and clearance <= DASHBOARD_OBSTACLE_DISTANCE_M
+            )
+        )
+        obstacle_label = (
+            str(obstacle.label)
+            if obstacle is not None
+            else "một vật cản"
+        )
+        predicted_person_speed = float(behavior.get("predicted_speed_mps", 0.0))
+        occupied = any(
+            bool(item.get("path_occupied"))
+            for item in behavior.get("occupancy", [])
+            if isinstance(item, dict)
+        )
+        moving = abs(linear) >= 0.03 or abs(angular) >= 0.05
+        speed = "đứng yên" if not moving else (
+            "đang di chuyển chậm" if abs(linear) < 0.22 else "đang di chuyển nhanh"
+        )
+        turn = "đi thẳng" if abs(angular) < 0.12 else (
+            "đang cua trái" if angular > 0.0 else "đang cua phải"
+        )
+        if obstacle is None and not math.isfinite(clearance):
+            obstacle_side = "chưa thấy vật cản gần"
+        elif obstacle is None:
+            obstacle_side = f"vật phía trước còn cách {clearance:.1f} m"
+        else:
+            bearing = obstacle.bearing_rad
+            side = "chính giữa" if bearing is None or abs(bearing) < 0.25 else (
+                "bên trái" if bearing > 0.0 else "bên phải"
+            )
+            obstacle_side = f"{side} ({obstacle.label})"
+        q = {
+            "q01": (
+                f"motion:{speed}",
+                "Robot đang đứng yên." if not moving
+                else "Robot đang di chuyển chậm." if abs(linear) < 0.22
+                else "Robot đang di chuyển nhanh.",
+            ),
+            "q02": (f"heading:{turn}", f"Robot {turn}."),
+            "q03": ("steady", "Tốc độ đang giữ tương đối đều."),
+            "q04": (
+                "blocked" if has_front_obstacle else "open",
+                f"Phía trước bị chặn gần bởi {obstacle_label}."
+                if has_front_obstacle
+                else "Phía trước đang thoáng và nhìn được xa.",
+            ),
+            "q05": (
+                "obstacle" if has_front_obstacle else "none",
+                f"Có, {obstacle_label} phía trước đang lớn dần."
+                if has_front_obstacle and linear > 0.03
+                else f"Có {obstacle_label} phía trước nhưng chưa thấy lớn nhanh."
+                if has_front_obstacle
+                else "Không có vật nào đang phình to rõ rệt.",
+            ),
+            "q06": (
+                "tracked" if has_front_obstacle else "none",
+                "Người đó đang di chuyển."
+                if has_front_obstacle
+                and obstacle is not None
+                and obstacle.name.startswith("random_worker_")
+                and predicted_person_speed > 0.08
+                else "Người đó đang đứng yên."
+                if has_front_obstacle
+                and obstacle is not None
+                and obstacle.name.startswith("random_worker_")
+                else "Vật đó đang đứng yên; nó lớn dần vì robot tiến tới."
+                if has_front_obstacle and linear > 0.03
+                else "Chưa thấy vật đó tự di chuyển."
+                if has_front_obstacle
+                else "Không có vật đang phình to rõ rệt.",
+            ),
+            "q07": (f"obstacle:{obstacle_side}", f"Vật cản gần nhất: {obstacle_side}."),
+            "q08": (
+                "risk"
+                if occupied
+                or decision in {"WAIT", "REPLAN"}
+                or (
+                    has_front_obstacle
+                    and (
+                        clearance < 1.2
+                        or (linear > 0.03 and clearance / linear <= 3.0)
+                    )
+                )
+                else "clear",
+                "Có, giữ nguyên hướng có thể dẫn đến va chạm."
+                if occupied
+                or decision in {"WAIT", "REPLAN"}
+                or (
+                    has_front_obstacle
+                    and (
+                        clearance < 1.2
+                        or (linear > 0.03 and clearance / linear <= 3.0)
+                    )
+                )
+                else "Không, hướng đi hiện tại vẫn an toàn.",
+            ),
+            "q09": (
+                decision,
+                "Dừng và chờ đường trống." if decision == "WAIT" else
+                "Đổi sang đường đi khác." if decision == "REPLAN" else
+                "Chậm lại và giữ khoảng cách." if has_front_obstacle and clearance < 2.0 else
+                "Đi tiếp bình thường.",
+            ),
+            "q10": (
+                "left" if angular > 0.12 else "right" if angular < -0.12 else "none",
+                "Đang cua trái để tránh." if angular > 0.12 else
+                "Đang cua phải để tránh." if angular < -0.12 else
+                "Chưa cần né, tiếp tục giữ giữa lối.",
+            ),
+            "q11": (
+                "narrow" if has_front_obstacle else "stable",
+                "Lối đi đang hẹp lại vì có vật phía trước." if has_front_obstacle
+                else "Lối đi phía trước vẫn rộng và ổn định.",
+            ),
+            "q12": (
+                f"turn:{turn}",
+                "Robot đang lệch nhẹ sang trái." if angular > 0.12
+                else "Robot đang lệch nhẹ sang phải." if angular < -0.12
+                else "Robot đang giữ gần giữa lối.",
+            ),
+            "q13": (
+                "people" if people else "none",
+                "Có, người phía trước đang di chuyển."
+                if people and predicted_person_speed > 0.08
+                else "Có, người phía trước đang đứng yên."
+                if people
+                else "Không có người ở gần phía trước.",
+            ),
+            "q14": (
+                "blocked" if clearance < 1.2 else "narrow" if has_front_obstacle else "clear",
+                "Phía trước không đủ khoảng trống để đi qua an toàn."
+                if clearance < 1.2
+                else "Khoảng trống phía trước hơi hẹp, robot nên giảm tốc."
+                if has_front_obstacle
+                else "Khoảng trống phía trước đủ rộng để đi qua.",
+            ),
+            "q15": (
+                "planned",
+                "Phía trước là một khúc cua trái."
+                if angular > 0.12
+                else "Phía trước là một khúc cua phải."
+                if angular < -0.12
+                else "Phía trước tiếp tục là lối đi, chưa thấy lối cụt.",
+            ),
+            "q16": (
+                "occluded" if has_front_obstacle else "unknown",
+                "Vùng ngay sau vật cản có thể bị che khuất; giữ giới hạn an toàn." if has_front_obstacle
+                else "Chưa thấy vùng che khuất nguy hiểm ở phía trước.",
+            ),
+            "q17": (
+                "rollout",
+                f"{obstacle_label.capitalize()} sẽ lớn dần khi robot tiến tới."
+                if has_front_obstacle and linear > 0.03
+                else "Khung cảnh sẽ xoay dần sang trái khi robot cua phải."
+                if angular < -0.12
+                else "Khung cảnh sẽ xoay dần sang phải khi robot cua trái."
+                if angular > 0.12
+                else "Lối đi sẽ tiếp tục mở ra phía trước.",
+            ),
+            "q18": (
+                str(snapshot.get("area", "unknown")),
+                f"Mốc hiện tại là {snapshot.get('area', 'khu vực chưa xác định')}.",
+            ),
+            "q19": (
+                "ambiguous" if "kệ" in str(snapshot.get("area", "")) else "tracked",
+                "Có, các nhịp kệ ở khu vực này khá giống nhau."
+                if "kệ" in str(snapshot.get("area", ""))
+                else "Không, khu vực này có đặc điểm khá dễ nhận ra.",
+            ),
+            "q20": (
+                decision,
+                "Dừng." if decision == "WAIT" else "Đổi sang đường khác." if decision == "REPLAN"
+                else "Cua trái và đi chậm." if angular > 0.12
+                else "Cua phải và đi chậm." if angular < -0.12
+                else "Đi thẳng và giữ tốc độ hiện tại.",
+            ),
+        }
+        return q[question_id]
 
     def update(self, snapshot: dict[str, Any]) -> None:
         sequence = int(snapshot["sequence"])
         if sequence == self.last_sequence:
             return
         self.last_sequence = sequence
+        self.latest_snapshot = snapshot
+        self.latest_stream_elapsed_s = float(snapshot.get("stream_elapsed_s", 0.0))
         for spec in self.questions:
             question_id = str(spec["id"])
             key, answer = self._answer(question_id, snapshot)
@@ -900,17 +2056,42 @@ class PreparedQA:
                 self.stable[question_id] = answer
 
     def active(self, now: float | None = None) -> dict[str, Any]:
-        elapsed = (time.monotonic() if now is None else now) - self.started
-        index = int(max(0.0, elapsed) / self.interval_sec) % len(self.questions)
-        spec = self.questions[index]
+        elapsed = self.latest_stream_elapsed_s
+        if self.last_sequence < 0:
+            elapsed = (time.monotonic() if now is None else now) - self.started
+        slot = int(max(0.0, elapsed) / self.interval_sec)
+        if self.active_spec is None or self.active_slot != slot:
+            eligible = self._eligible_questions(self.latest_snapshot)
+            self.active_index = slot % len(eligible)
+            self.active_count = len(eligible)
+            self.active_spec = eligible[self.active_index]
+            self.active_slot = slot
+        spec = self.active_spec
+        index = self.active_index
         question_id = str(spec["id"])
+        instant_answer = self.instant.get(question_id, "Collecting live context...")
+        stable_answer = self.stable.get(question_id, "Collecting live context...")
+        answer_latent = None
+        if self.latest_snapshot is not None and question_id in self.stable:
+            answer_latent = self.answer_latent.infer(
+                question_id=question_id,
+                question=str(spec["text"]),
+                policy_answer=instant_answer,
+                stabilized_answer=stable_answer,
+                visual_embedding=self.latest_snapshot.get("query_latent"),
+                sequence=self.last_sequence,
+                ambiguity=answer_observation_ambiguity(
+                    question_id, self.latest_snapshot
+                ),
+            )
         return {
             "index": index,
-            "count": len(self.questions),
+            "count": self.active_count,
             "id": question_id,
             "question": str(spec["text"]),
             "instant": self.instant.get(question_id, "Collecting live context..."),
-            "stable": self.stable.get(question_id, "Collecting live context..."),
+            "stable": stable_answer,
+            "answer_latent": answer_latent,
         }
 
 
@@ -937,7 +2118,10 @@ class DashboardRenderer:
         self.map_width = int(round(image.shape[1] * self.scale))
         self.map_height = int(round(image.shape[0] * self.scale))
         self.regions = regions
-        self.latent = LatentProjector(latent_map)
+        # Keep the visual projector available for localization diagnostics;
+        # the public streaming panel renders query-conditioned answer latents.
+        self.visual_latent = LatentProjector(latent_map)
+        self.answer_latent_renderer = AnswerLatentRenderer()
 
     def world_to_pixel(self, x: float, y: float) -> tuple[int, int]:
         column = (x - self.origin_x) / self.resolution
@@ -983,16 +2167,32 @@ class DashboardRenderer:
         scale: float = 0.52,
         thickness: int = 1,
     ) -> None:
-        cv2.putText(
-            image,
-            ascii_text(text),
+        value = str(text)
+        if value.isascii():
+            cv2.putText(
+                image,
+                value,
+                (x, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                scale,
+                color,
+                thickness,
+                cv2.LINE_AA,
+            )
+            return
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pil_image = PILImage.fromarray(rgb)
+        draw = ImageDraw.Draw(pil_image)
+        font = dashboard_font(max(11, int(round(31.0 * scale))))
+        draw.text(
             (x, y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            scale,
-            color,
-            thickness,
-            cv2.LINE_AA,
+            value,
+            font=font,
+            fill=(color[2], color[1], color[0]),
+            anchor="ls",
+            stroke_width=max(0, thickness - 1),
         )
+        image[:] = cv2.cvtColor(np.asarray(pil_image), cv2.COLOR_RGB2BGR)
 
     @staticmethod
     def _pose_text(pose: PoseSample | None) -> str:
@@ -1015,7 +2215,7 @@ class DashboardRenderer:
     def render_streaming(
         self, snapshot: dict[str, Any], qa: dict[str, Any]
     ) -> np.ndarray:
-        """Render the reference-video layout: camera left, latent plane right."""
+        """Render the live streaming layout: camera left, latent plane right."""
         width, height = STREAMING_WIDTH, STREAMING_HEIGHT
         canvas = np.full((height, width, 3), (18, 22, 28), dtype=np.uint8)
         cv2.rectangle(canvas, (0, 0), (width, 82), (43, 37, 32), -1)
@@ -1030,7 +2230,7 @@ class DashboardRenderer:
         )
         self._line(
             canvas,
-            f"Model: {qa['stable']}",
+            f"Answer: {qa['stable']}",
             24,
             64,
             color=(120, 235, 255),
@@ -1084,7 +2284,7 @@ class DashboardRenderer:
         )
         self._line(
             canvas,
-            f"AGV CAMERA  16:9  |  latest frame: {age_text}  |  {ascii_text(str(snapshot['area']))}",
+            f"AGV CAMERA  16:9  |  latest frame: {age_text}  |  {snapshot['area']}",
             camera_x + 10,
             camera_y + 23,
             color=(235, 235, 235),
@@ -1093,16 +2293,12 @@ class DashboardRenderer:
         )
 
         latent_bounds = (840, 98, 580, 450)
-        self.latent.draw(
+        self.answer_latent_renderer.draw(
             canvas,
             latent_bounds,
-            snapshot["query_latent"],
-            snapshot["source_id"],
+            qa.get("answer_latent"),
+            str(qa["id"]),
         )
-        cv2.circle(canvas, (864, 522), 6, (45, 45, 235), -1)
-        self._line(canvas, "Instant query embedding", 878, 527, color=(45, 45, 80), scale=0.42)
-        cv2.circle(canvas, (1058, 522), 6, (235, 90, 35), -1)
-        self._line(canvas, "Temporal match", 1072, 527, color=(45, 45, 80), scale=0.42)
 
         return canvas
 

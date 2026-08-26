@@ -24,6 +24,11 @@ stations:
       # into the central part of P. Precise docking is unnecessary here: once
       # Nav2 reaches the bay, the fork extends, releases and lowers the carton.
       PACK01: {anchor: dropoff_PACK01, approach: [10.80, -10.60, -1.5708], drop_center: [10.80, -10.60], drop_half_extents: [1.35, 0.85], drop_center_tolerance: [0.30, 0.30], drop_surface_z: 0.055}
+  charging_home:
+    slots:
+      # This is the AGV model pose at startup. The charging pad is 0.82 m
+      # behind the model centre, aligned with the rear charging interface.
+      HOME01: {anchor: charging_HOME01, approach: [13.90, -10.60, 3.14159], position_tolerance_m: 0.38, pad_center: [14.72, -10.60]}
 
 objects:
   blue_box: {color: blue, location: storage_A, slot: A01, model: special_blue_box, shelf_pose: [-6.25528, -0.876987, 0.83]}

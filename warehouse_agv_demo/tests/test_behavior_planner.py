@@ -38,7 +38,7 @@ def test_static_blocker_waits_then_resumes_when_path_is_predicted_clear() -> Non
         timestamp=1.0,
     )
     blocker.update(Pose2D(1.0, 1.8), 3.0)
-    cleared = planner.evaluate(
+    confirming = planner.evaluate(
         person_id="human_1",
         scenario="human_1_static_until_close",
         ego=Pose2D(0.0, 0.0),
@@ -46,8 +46,17 @@ def test_static_blocker_waits_then_resumes_when_path_is_predicted_clear() -> Non
         track=blocker,
         timestamp=3.0,
     )
+    cleared = planner.evaluate(
+        person_id="human_1",
+        scenario="human_1_static_until_close",
+        ego=Pose2D(0.0, 0.0),
+        ego_speed_mps=0.4,
+        track=blocker,
+        timestamp=4.1,
+    )
 
     assert waiting.decision is Decision.WAIT
+    assert confirming.decision is Decision.WAIT
     assert cleared.decision is Decision.PASS
     assert "resume" in cleared.reason
 
@@ -110,7 +119,7 @@ def test_persistent_blockage_requests_only_a_bounded_replan() -> None:
 
 
 def test_stalled_crossing_human_at_corridor_edge_authorizes_safe_overtake() -> None:
-    config = PlannerConfig(overtake_after_s=2.0)
+    config = PlannerConfig(overtake_after_s=2.0, allow_stationary_overtake=True)
     planner = PredictiveBehaviorPlanner(config)
     edge = track([(0.0, 1.5, 0.60), (1.0, 1.5, 0.60)])
     planner.evaluate(
@@ -125,6 +134,24 @@ def test_stalled_crossing_human_at_corridor_edge_authorizes_safe_overtake() -> N
 
     assert report.decision is Decision.PASS
     assert "lateral overtake" in report.reason
+
+
+def test_demo_policy_never_overtakes_stalled_worker_2() -> None:
+    config = PlannerConfig(overtake_after_s=2.0, allow_stationary_overtake=False)
+    planner = PredictiveBehaviorPlanner(config)
+    edge = track([(0.0, 1.5, 0.60), (1.0, 1.5, 0.60)])
+    planner.evaluate(
+        person_id="human_2", scenario="human_2_continuous_crossing",
+        ego=Pose2D(0.0, 0.0), ego_speed_mps=0.3, track=edge, timestamp=1.0,
+    )
+
+    report = planner.evaluate(
+        person_id="human_2", scenario="human_2_continuous_crossing",
+        ego=Pose2D(0.0, 0.0), ego_speed_mps=0.3, track=edge, timestamp=3.1,
+    )
+
+    assert report.decision is Decision.WAIT
+    assert "overtake" not in report.reason
 
 
 def test_decision_json_contains_required_reason_and_metrics() -> None:

@@ -15,13 +15,17 @@ behavior_planner:
   replan_after_s: 10.0
   replan_cooldown_s: 15.0
   stationary_speed_mps: 0.08
-  # Human #2 can be passed only after a bounded wait when tracking proves it
-  # is stationary at the corridor edge with ample center separation. MPPI's
-  # local collision critic remains authoritative during this short window.
+  # Keep the optional research overtake path configured but disabled for the
+  # controlled demo. Human #2 continuously crosses, so the AGV waits until the
+  # complete predicted corridor is clear instead of squeezing past an edge.
   overtake_after_s: 4.0
   overtake_min_lateral_m: 0.55
   overtake_min_separation_m: 1.20
   overtake_authorization_s: 5.0
+  allow_stationary_overtake: false
+  # Do not resume on a single clear prediction at a turnaround or during pose
+  # jitter. Clearance must remain observed for this continuous interval.
+  clearance_confirmation_s: 1.0
 
 scenarios:
   random_worker_4: human_1_static_until_close

@@ -1,23 +1,54 @@
-# The showcase rotates these prepared questions while the robot follows a
-# fixed route. Answers are deterministic templates filled from the current
-# V-JEPA pose, temporal state, A* plan and LiDAR/Gazebo evaluator context.
-interval_sec: 3.5
-stabilize_frames: 2
+# Leave enough time to read both the question and its live answer.
+interval_sec: 4.0
+# Instant prediction is shown immediately (red); the stabilized answer (blue)
+# changes only after the same semantic state persists for three observations.
+stabilize_frames: 3
+# Keep enough camera history when inference is slower than camera capture; the writer selects
+# the frame nearest the latent clip-center timestamp, not merely the newest.
+frame_buffer_size: 4096
+
+# Internal query-conditioned answer-latent adapter. This follows the VL-JEPA
+# inference shape (vision + query -> predicted answer embedding) while the
+# warehouse policy/world state supplies a controlled-demo target. None of this
+# provenance text is rendered in the public dashboard.
+answer_latent:
+  backend: auto
+  checkpoint: intfloat/multilingual-e5-small
+  device: cpu
+  allow_download: true
+  fallback_dimension: 384
+  # Keep the policy answer as the strongest cue, but leave enough weight for
+  # the live V-JEPA clip to move the instant prediction between nearby answers.
+  oracle_weight: 0.60
+  uncertain_oracle_weight: 0.10
+  query_weight: 0.15
+  visual_weight: 0.25
+  selective_decode_cosine: 0.995
+  manifold_neighbors: 18
+  manifold_temperature: 0.025
+  manifold_iterations: 500
+  manifold_learning_rate: 80.0
+  display_spring_stiffness: 30.0
+  display_spring_damping: 11.0
 
 questions:
-  - id: area
-    text: "Robot dang o khu vuc nao?"
-  - id: obstacle
-    text: "Phia truoc co vat can khong?"
-  - id: person
-    text: "Co nguoi o gan tuyen duong khong?"
-  - id: avoidance
-    text: "Robot dang ne vat gi?"
-  - id: motion
-    text: "Robot dang di chuyen nhu the nao?"
-  - id: route
-    text: "A* con duong di de theo khong?"
-  - id: tracking
-    text: "Dinh vi V-JEPA co on dinh khong?"
-  - id: comparison
-    text: "V-JEPA lech bao nhieu so voi Gazebo truth?"
+  - {id: q01, scope: always, text: "Robot đang đứng yên hay đang di chuyển, nhanh hay chậm?"}
+  - {id: q02, scope: motion, text: "Robot đang đi thẳng, cua trái hay cua phải?"}
+  - {id: q03, scope: motion, text: "Tốc độ đang tăng, giữ đều hay đang giảm?"}
+  - {id: q04, scope: navigation, text: "Phía trước nhìn được xa hay bị chặn gần?"}
+  - {id: q05, scope: approaching_obstacle, text: "Trong khung hình có vật nào đang phình to lên không?"}
+  - {id: q06, scope: obstacle, text: "Vật đang phình to đó đứng yên hay tự nó di chuyển?"}
+  - {id: q07, scope: obstacle, text: "Vật cản gần nhất nằm bên trái, chính giữa hay bên phải?"}
+  - {id: q08, scope: hazard, text: "Giữ nguyên hướng và tốc độ thì vài giây tới có đâm vào gì không?"}
+  - {id: q09, scope: hazard, text: "Nên đi tiếp, chậm lại hay dừng hẳn?"}
+  - {id: q10, scope: avoidance, text: "Nếu phải né thì né sang bên nào?"}
+  - {id: q11, scope: aisle, text: "Lối đi phía trước đang rộng ra hay hẹp lại?"}
+  - {id: q12, scope: aisle_motion, text: "Robot có đang lệch về một bên lối đi không?"}
+  - {id: q13, scope: people, text: "Có người trong khung hình không, họ đứng yên hay đang đi?"}
+  - {id: q14, scope: navigation, text: "Khoảng trống phía trước có đủ để robot đi qua an toàn không?"}
+  - {id: q15, scope: aisle, text: "Sắp tới có ngã rẽ hay lối cụt không?"}
+  - {id: q16, scope: obstacle, text: "Chỗ nào đang bị che khuất, có thể có vật lao ra bất ngờ?"}
+  - {id: q17, scope: motion, text: "Vài giây tới cảnh trước mặt sẽ thay đổi thế nào?"}
+  - {id: q18, scope: always, text: "Có mốc nào để định vị không (biển chữ, ô màu, pad sàn)?"}
+  - {id: q19, scope: shelf, text: "Chỗ này có dễ nhầm với đoạn khác trong kho không?"}
+  - {id: q20, scope: always, text: "Hành động cụ thể cho 2 giây tới là gì?"}

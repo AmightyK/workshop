@@ -64,6 +64,8 @@ class PlannerConfig:
     overtake_min_lateral_m: float = 0.55
     overtake_min_separation_m: float = 1.20
     overtake_authorization_s: float = 5.0
+    allow_stationary_overtake: bool = False
+    clearance_confirmation_s: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -159,6 +161,7 @@ class PredictiveBehaviorPlanner:
     def __init__(self, config: PlannerConfig | None = None) -> None:
         self.config = config or PlannerConfig()
         self.wait_started: dict[str, float] = {}
+        self.clear_started: dict[str, float] = {}
         self.last_replan: dict[str, float] = {}
         self.pass_authorized_until: dict[str, float] = {}
 
@@ -258,6 +261,7 @@ class PredictiveBehaviorPlanner:
         blocked = immediate_emergency or unsafe_window
 
         if blocked:
+            self.clear_started.pop(person_id, None)
             wait_started = self.wait_started.setdefault(person_id, timestamp)
             wait_duration = max(0.0, timestamp - wait_started)
             last_replan = self.last_replan.get(person_id, -math.inf)
@@ -265,6 +269,8 @@ class PredictiveBehaviorPlanner:
                 person_id, -math.inf
             )
             can_start_overtake = (
+                config.allow_stationary_overtake
+                and
                 scenario == "human_2_continuous_crossing"
                 and wait_duration >= config.overtake_after_s
                 and speed <= config.stationary_speed_mps
@@ -310,18 +316,38 @@ class PredictiveBehaviorPlanner:
                     )
         else:
             self.pass_authorized_until.pop(person_id, None)
-            previous_wait = self.wait_started.pop(person_id, None)
+            previous_wait = self.wait_started.get(person_id)
             wait_duration = (
                 max(0.0, timestamp - previous_wait)
                 if previous_wait is not None
                 else 0.0
             )
-            decision = Decision.PASS
-            resumed = "path cleared; resume" if previous_wait is not None else "safe pass"
-            reason = (
-                f"{resumed}: predicted collision probability {probability:.2f}, "
-                f"free-space window {free_window:.2f}s"
-            )
+            if previous_wait is not None:
+                clear_started = self.clear_started.setdefault(person_id, timestamp)
+                clear_duration = max(0.0, timestamp - clear_started)
+                if clear_duration < config.clearance_confirmation_s:
+                    decision = Decision.WAIT
+                    reason = (
+                        f"predicted path has been clear for {clear_duration:.2f}s; "
+                        f"confirming {config.clearance_confirmation_s:.2f}s continuous "
+                        "clearance before resume"
+                    )
+                else:
+                    self.wait_started.pop(person_id, None)
+                    self.clear_started.pop(person_id, None)
+                    decision = Decision.PASS
+                    reason = (
+                        "path cleared continuously; resume: predicted collision "
+                        f"probability {probability:.2f}, free-space window "
+                        f"{free_window:.2f}s"
+                    )
+            else:
+                self.clear_started.pop(person_id, None)
+                decision = Decision.PASS
+                reason = (
+                    f"safe pass: predicted collision probability {probability:.2f}, "
+                    f"free-space window {free_window:.2f}s"
+                )
 
         return DecisionReport(
             decision=decision,

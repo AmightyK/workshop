@@ -20,6 +20,7 @@ from trajectory_evaluation import (
     prefix_through_corner,
     summarize_tracking,
 )
+from mission_lifecycle import contains_ordered_sequence
 
 
 REQUIRED_SCENES = {
@@ -33,13 +34,33 @@ REQUIRED_SCENES = {
 REQUIRED_STATES = {
     "NAVIGATE_TO_SHELF",
     "SHELF_APPROACH",
+    "RAISE_LIFT",
     "ALIGN_PACKAGE",
     "GRASP_PACKAGE",
     "VERIFY_GRASP",
     "RETURN_TO_DROPOFF",
     "PLACE_PACKAGE",
+    "DROP",
+    "PARK",
+    "CHARGING_HOME",
+    "READY_FOR_NEXT_TASK",
     "MISSION_COMPLETE",
 }
+REQUIRED_STATE_SEQUENCE = (
+    "NAVIGATE_TO_SHELF",
+    "SHELF_APPROACH",
+    "RAISE_LIFT",
+    "ALIGN_PACKAGE",
+    "GRASP_PACKAGE",
+    "VERIFY_GRASP",
+    "RETURN_TO_DROPOFF",
+    "PLACE_PACKAGE",
+    "DROP",
+    "PARK",
+    "CHARGING_HOME",
+    "MISSION_COMPLETE",
+    "READY_FOR_NEXT_TASK",
+)
 REQUIRED_BEHAVIOR_CASES = {
     "human_leaves_path",
     "human_continues_crossing",
@@ -93,6 +114,12 @@ def main() -> None:
     parser.add_argument("--latent-run", type=Path, required=True)
     parser.add_argument("--baseline-latent-run", type=Path)
     parser.add_argument("--behavior-log", type=Path, required=True)
+    parser.add_argument(
+        "--mission-log",
+        type=Path,
+        default=None,
+        help="mission_states.jsonl; defaults to the latent run artifact",
+    )
     parser.add_argument("--reference-route", type=Path)
     parser.add_argument("--baseline-trajectory", type=Path)
     parser.add_argument("--candidate-trajectory", type=Path)
@@ -105,9 +132,17 @@ def main() -> None:
     samples = read_jsonl(args.latent_run / "samples.jsonl")
     metrics = read_jsonl(args.latent_run / "latent_metrics.jsonl")
     behavior = read_jsonl(args.behavior_log)
+    mission_path = args.mission_log or args.latent_run / "mission_states.jsonl"
+    mission_events = read_jsonl(mission_path) if mission_path.is_file() else []
     scenes = {str(row.get("scene")) for row in samples}
-    states = {str(row.get("mission_state")) for row in samples}
+    sample_states = [str(row.get("mission_state")) for row in samples]
+    event_states = [str(row.get("state")) for row in mission_events]
+    ordered_states = event_states or sample_states
+    states = set(sample_states) | set(event_states)
     horizons = {int(row["horizon"]) for row in metrics}
+    scene_horizons = {
+        (str(row.get("scene")), int(row["horizon"])) for row in metrics
+    }
     cases = {
         path.stem
         for path in (args.latent_run / "behavior_visualizations").glob("*.png")
@@ -125,9 +160,76 @@ def main() -> None:
         if occupancy and float(occupancy[0].get("separation_m", 99.0)) < 0.30:
             collision_samples += 1
 
+    scenario_decisions = {
+        scenario: {
+            str(row.get("decision"))
+            for row in behavior
+            if str(row.get("scenario")) == scenario
+        }
+        for scenario in (
+            "human_1_static_until_close",
+            "human_2_continuous_crossing",
+        )
+    }
+    ready_events = [
+        row for row in mission_events
+        if str(row.get("state")) == "READY_FOR_NEXT_TASK"
+    ]
+    ready_gates = bool(ready_events) and all(
+        bool(ready_events[-1].get(name))
+        for name in (
+            "drop_verified",
+            "payload_detached",
+            "lift_stowed",
+            "slide_retracted",
+            "home_pose_verified",
+        )
+    )
+    charging_events = [
+        row for row in mission_events
+        if str(row.get("state")) == "CHARGING_HOME"
+    ]
+    charging_verified = bool(charging_events) and bool(
+        charging_events[-1].get("contact_verified")
+    )
+    evidence_complete = bool(samples) and all(
+        str(row.get("latent_source", "")).startswith("/vjepa_latent")
+        and (args.latent_run / str(row.get("raw_frame", ""))).is_file()
+        and (args.latent_run / str(row.get("latent_vector", ""))).is_file()
+        and float(row.get("frame_time_error_s", math.inf)) <= 0.10
+        for row in samples
+    )
+
     checks = [
         check("all critical V-JEPA scenes logged", REQUIRED_SCENES <= scenes, sorted(scenes)),
+        check(
+            "raw frames are timestamp-aligned with actual V-JEPA latents and poses",
+            evidence_complete,
+            {
+                "samples": len(samples),
+                "max_frame_time_error_s": max(
+                    (float(row.get("frame_time_error_s", math.inf)) for row in samples),
+                    default=math.inf,
+                ),
+            },
+        ),
         check("z(t+1..3) evaluated", horizons == {1, 2, 3}, sorted(horizons)),
+        check(
+            "z(t+1..3) evaluated for every critical scene",
+            all(
+                (scene, horizon) in scene_horizons
+                for scene in REQUIRED_SCENES
+                for horizon in (1, 2, 3)
+            ),
+            {
+                scene: sorted(
+                    horizon
+                    for candidate, horizon in scene_horizons
+                    if candidate == scene
+                )
+                for scene in sorted(REQUIRED_SCENES)
+            },
+        ),
         check("behavior prediction visualizations", REQUIRED_BEHAVIOR_CASES <= cases, sorted(cases)),
         check("WAIT and PASS exercised with reasons", {"WAIT", "PASS"} <= decisions and reasons_complete, sorted(decisions)),
         check(
@@ -139,7 +241,32 @@ def main() -> None:
             <= scenarios,
             sorted(scenarios),
         ),
+        check(
+            "Human #1 waits then resumes",
+            {"WAIT", "PASS"}
+            <= scenario_decisions["human_1_static_until_close"],
+            sorted(scenario_decisions["human_1_static_until_close"]),
+        ),
+        check(
+            "Human #2 dynamically waits and passes",
+            {"WAIT", "PASS"}
+            <= scenario_decisions["human_2_continuous_crossing"],
+            sorted(scenario_decisions["human_2_continuous_crossing"]),
+        ),
         check("mission reached shelf, grasped, returned, and placed", REQUIRED_STATES <= states, sorted(states)),
+        check(
+            "mission states occurred in required order",
+            contains_ordered_sequence(ordered_states, REQUIRED_STATE_SEQUENCE),
+            ordered_states,
+        ),
+        check(
+            "DROP -> PARK -> CHARGING/HOME -> READY gates verified",
+            ready_gates and charging_verified,
+            {
+                "charging": charging_events[-1] if charging_events else None,
+                "ready": ready_events[-1] if ready_events else None,
+            },
+        ),
         check("no human collision samples", collision_samples == 0, collision_samples),
         check(
             "latent plots and summary generated",

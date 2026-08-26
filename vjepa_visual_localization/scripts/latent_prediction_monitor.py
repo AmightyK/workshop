@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
 import queue
@@ -11,6 +12,7 @@ import signal
 import sys
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,12 +61,18 @@ MISSION_SCENES = {
     "VERIFY_GRASP": "pick_up_operation",
     "RETURN_TO_DROPOFF": "return_path",
     "PLACE_PACKAGE": "return_path",
+    "DROP": "return_path",
+    "PARK": "return_path",
+    "CHARGING_HOME": "return_path",
+    "READY_FOR_NEXT_TASK": "return_path",
 }
 
 
 @dataclass(frozen=True)
 class LogSample:
     timestamp: float
+    frame_timestamp: float
+    frame_time_error_s: float
     frame_rgb: np.ndarray
     latent: np.ndarray
     pose: tuple[float, float, float, float]
@@ -74,14 +82,51 @@ class LogSample:
     inference_ms: float | None = None
 
 
-def classify_scene(mission_state: str, behavior: dict[str, Any]) -> str:
+def classify_scene(
+    mission_state: str,
+    behavior: dict[str, Any],
+    pose: tuple[float, float, float, float] | None = None,
+) -> str:
     scenario = str(behavior.get("scenario", ""))
     person = str(behavior.get("person_id", "none"))
-    if scenario == "human_1_static_until_close" or person == "random_worker_4":
+    occupancy = [
+        item for item in (behavior.get("occupancy") or [])
+        if isinstance(item, dict)
+    ]
+    encounter = (
+        str(behavior.get("decision", "PASS")) in {"WAIT", "REPLAN"}
+        or behavior.get("behavior_case") is not None
+        or any(
+            bool(item.get("path_occupied"))
+            or float(item.get("separation_m", math.inf)) <= 3.5
+            for item in occupancy
+        )
+    )
+    if encounter and (
+        scenario == "human_1_static_until_close" or person == "random_worker_4"
+    ):
         return "human_1_encounter"
-    if scenario == "human_2_continuous_crossing" or person == "random_worker_5":
+    if encounter and (
+        scenario == "human_2_continuous_crossing" or person == "random_worker_5"
+    ):
         return "human_2_encounter"
-    return MISSION_SCENES.get(mission_state, "normal_driving")
+    explicit = MISSION_SCENES.get(mission_state)
+    if explicit is not None and explicit != "normal_driving":
+        return explicit
+    # A state publisher can exit between two V-JEPA inference strides. The
+    # actual V-JEPA pose provides an observed fallback for shelf coverage,
+    # avoiding an arbitrary state dwell solely to satisfy the logger.
+    if pose is not None and mission_state in {
+        "NAVIGATE_TO_SHELF",
+        "SHELF_APPROACH",
+        "PARSE_TASK",
+    }:
+        x, y = float(pose[0]), float(pose[1])
+        if -7.3 <= x <= -3.0 and min(
+            abs(y - shelf_y) for shelf_y in (-1.94, 1.06, 4.06)
+        ) <= 1.5:
+            return "shelf_approach"
+    return explicit or "normal_driving"
 
 
 def write_behavior_visualization(
@@ -222,7 +267,7 @@ class LatentLogWriter:
         with path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(value, sort_keys=True) + "\n")
 
-    def write(self, sample: LogSample) -> None:
+    def write(self, sample: LogSample) -> dict[str, Any]:
         index = self.sample_count
         frame_path = self.frame_dir / f"{index:06d}.jpg"
         latent_path = self.latent_dir / f"{index:06d}.npy"
@@ -251,13 +296,17 @@ class LatentLogWriter:
         record = {
             "sample_index": index,
             "timestamp": sample.timestamp,
+            "frame_timestamp": sample.frame_timestamp,
+            "frame_time_error_s": sample.frame_time_error_s,
             "vehicle_pose": list(sample.pose),
+            "vehicle_pose_source": "/vjepa_localization/debug",
             "scene": sample.scene,
             "mission_state": sample.mission_state,
             "behavior_decision": sample.behavior,
             "inference_ms": sample.inference_ms,
             "raw_frame": str(frame_path.relative_to(self.output_dir)),
             "latent_vector": str(latent_path.relative_to(self.output_dir)),
+            "latent_source": "/vjepa_latent (actual V-JEPA global embedding)",
             "rollouts": rollout_records,
         }
         self._append_json(self.manifest_path, record)
@@ -273,6 +322,32 @@ class LatentLogWriter:
             )
             self.visualized_cases.add(str(case_name))
         self.sample_count += 1
+        return {
+            "timestamp": sample.timestamp,
+            "scene": sample.scene,
+            "source": "actual_vjepa_embedding_causal_temporal_dynamics",
+            "model_contract": "V-JEPA embedding rollout; no RGB decoder",
+            "horizons": [
+                {
+                    "step": rollout.horizon,
+                    # Publish the actual predicted embedding so the live
+                    # dashboard can project z(t+h) into the same PCA plane.
+                    # This is predictor output, not a UI-generated point.
+                    "predicted_latent_f16_b64": base64.b64encode(
+                        rollout.predicted_latent.astype("<f2").tobytes()
+                    ).decode("ascii"),
+                    "latent_dimension": int(rollout.predicted_latent.size),
+                    "latent_encoding": "float16_base64",
+                    "predicted_drift_l2": float(
+                        np.linalg.norm(
+                            rollout.predicted_latent - rollout.origin_latent
+                        )
+                    ),
+                }
+                for rollout in predictions
+            ],
+            "matured_evaluations": [row.as_dict() for row in matured],
+        }
 
     def close(self, dropped_samples: int) -> None:
         summary = summarize_evaluations(self.evaluations)
@@ -301,6 +376,7 @@ class LatentPredictionMonitor(Node):
 
     def __init__(self, config: dict[str, Any], output_dir: Path) -> None:
         super().__init__("vjepa_latent_prediction_monitor")
+        self.output_dir = output_dir
         online = config.get("online", {})
         prediction = config.get("latent_prediction", {})
         horizons = tuple(int(value) for value in prediction.get("horizons", [1, 2, 3]))
@@ -312,9 +388,17 @@ class LatentPredictionMonitor(Node):
         self.work_queue: queue.Queue[LogSample | None] = queue.Queue(
             maxsize=int(prediction.get("writer_queue_size", 8))
         )
+        self.prediction_reports: queue.SimpleQueue[dict[str, Any]] = (
+            queue.SimpleQueue()
+        )
         self.worker = threading.Thread(target=self._writer_loop, daemon=True)
         self.worker.start()
-        self.latest_frame: tuple[float, np.ndarray] | None = None
+        # Keep enough raw frames to recover the exact/nearest clip-center
+        # image after GPU inference completes. Saving only the newest frame
+        # mislabeled a future image as the latent's source observation.
+        self.frames: deque[tuple[float, np.ndarray]] = deque(
+            maxlen=max(256, int(prediction.get("frame_buffer_size", 4096)))
+        )
         self.latest_latent: tuple[int, np.ndarray] | None = None
         self.latent_sequence = 0
         self.consumed_latent_sequence = -1
@@ -325,8 +409,13 @@ class LatentPredictionMonitor(Node):
         }
         self.previous_decisions: dict[str, str] = {}
         self.pending_behavior_case: str | None = None
+        self.mission_events: list[dict[str, Any]] = []
         self.dropped_samples = 0
         self.closed = False
+        self.prediction_publisher = self.create_publisher(
+            String, "/vjepa/latent_prediction", 10
+        )
+        self.create_timer(0.05, self._publish_prediction_reports)
         self.create_subscription(
             Image,
             str(online.get("camera_topic", "/vjepa/camera/image_raw")),
@@ -368,7 +457,9 @@ class LatentPredictionMonitor(Node):
             self.get_logger().error(str(error))
             return
         timestamp = message_timestamp_sec(message)
-        self.latest_frame = (timestamp, frame.copy())
+        if self.frames and timestamp < self.frames[-1][0]:
+            self.frames.clear()
+        self.frames.append((timestamp, frame.copy()))
 
     def _on_latent(self, message: Float32MultiArray) -> None:
         latent = np.asarray(message.data, dtype=np.float32)
@@ -382,8 +473,12 @@ class LatentPredictionMonitor(Node):
         try:
             payload = json.loads(message.data)
             self.mission_state = str(payload.get("state", message.data))
+            self.mission_events.append(payload)
         except json.JSONDecodeError:
             self.mission_state = message.data.strip() or self.mission_state
+            self.mission_events.append(
+                {"state": self.mission_state, "timestamp": None}
+            )
 
     def _accept_behavior(self, payload: dict[str, Any]) -> None:
         person = str(payload.get("person_id", "none"))
@@ -435,7 +530,7 @@ class LatentPredictionMonitor(Node):
         self._accept_behavior(payload)
 
     def _on_debug(self, message: String) -> None:
-        if self.latest_frame is None or self.latest_latent is None:
+        if not self.frames or self.latest_latent is None:
             return
         sequence, latent = self.latest_latent
         if sequence == self.consumed_latent_sequence:
@@ -449,11 +544,15 @@ class LatentPredictionMonitor(Node):
             return
         if len(pose_values) != 4:
             return
-        _, frame = self.latest_frame
+        frame_timestamp, frame = min(
+            self.frames, key=lambda item: abs(item[0] - timestamp)
+        )
         behavior = dict(self.behavior)
-        scene = classify_scene(self.mission_state, behavior)
+        scene = classify_scene(self.mission_state, behavior, pose_values)
         sample = LogSample(
             timestamp=timestamp,
+            frame_timestamp=frame_timestamp,
+            frame_time_error_s=abs(frame_timestamp - timestamp),
             frame_rgb=frame.copy(),
             latent=latent.copy(),
             pose=pose_values,
@@ -481,11 +580,25 @@ class LatentPredictionMonitor(Node):
             try:
                 if sample is None:
                     return
-                self.writer.write(sample)
+                report = self.writer.write(sample)
+                self.prediction_reports.put(report)
             except Exception as error:
                 self.get_logger().error(f"Latent log write failed: {error}")
             finally:
                 self.work_queue.task_done()
+
+    def _publish_prediction_reports(self) -> None:
+        """Publish async rollout evidence for the query-answer dashboard."""
+        latest = None
+        while True:
+            try:
+                latest = self.prediction_reports.get_nowait()
+            except queue.Empty:
+                break
+        if latest is not None:
+            self.prediction_publisher.publish(
+                String(data=json.dumps(latest, sort_keys=True))
+            )
 
     def close(self) -> None:
         if self.closed:
@@ -495,6 +608,13 @@ class LatentPredictionMonitor(Node):
         self.work_queue.join()
         self.worker.join(timeout=5.0)
         self.writer.close(self.dropped_samples)
+        (self.output_dir / "mission_states.jsonl").write_text(
+            "".join(
+                json.dumps(event, sort_keys=True) + "\n"
+                for event in self.mission_events
+            ),
+            encoding="utf-8",
+        )
 
 
 def main() -> None:

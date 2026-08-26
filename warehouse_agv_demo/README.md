@@ -7,8 +7,9 @@ storage markers, colored target boxes, shelves, pallets, carts and obstacles.
 
 The complete Shelf A / blue-package mission now includes predictive
 `WAIT`/`PASS`/`REPLAN` human handling, configurable grasp retries, curvature
-control at the second 90-degree turn, and asynchronous V-JEPA `z(t+1..3)`
-logging/evaluation. See
+control at the second 90-degree turn, asynchronous V-JEPA `z(t+1..3)`
+logging/evaluation, predictive QA, and a feedback-gated
+`DROP -> PARK -> CHARGING_HOME -> READY_FOR_NEXT_TASK` recycle loop. See
 [`docs/warehouse_vjepa_mission.md`](docs/warehouse_vjepa_mission.md) for the
 architecture, state machine, metrics, failure policy, and validation procedure.
 
@@ -323,8 +324,12 @@ The storage and color must describe the payload currently on the tray. Before
 release, the controller verifies from Gazebo link poses that this exact carton
 is still within `0.85 m` of the AGV; a wrong selection fails safely instead of
 detaching another model.
-The mapping traversal itself continues from Packing back to the charging dock,
-so the visual route is a complete loop.
+After a verified release, the mission stows the lift/slide, sends a normal Nav2
+goal to the configured home pose, verifies the observed Gazebo pose against the
+charging tolerance, and ends at `READY_FOR_NEXT_TASK`. A failed payload,
+hardware, home-pose, or charging-contact gate aborts the recycle transition.
+The mapping traversal also continues from Packing back to the charging dock,
+so the saved visual route covers the complete loop.
 Use `--route-only` to test aisle navigation without picking, or `--dry-run` to
 validate a storage/color combination without ROS or Gazebo motion. Nav2
 lifecycle state is checked automatically, so this command can wait for startup

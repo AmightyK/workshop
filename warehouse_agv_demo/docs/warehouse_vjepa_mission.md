@@ -36,6 +36,10 @@ flowchart LR
     DEC --> LOG
     OBS --> LOG
     LOG --> EVIDENCE[Frames, poses, latents, z(t+1..3), metrics, plots]
+    LOG --> PRED[/vjepa/latent_prediction]
+    PRED --> QA[Predictive query-answer dashboard]
+    DEC --> QA
+    STATE --> QA
 ```
 
 The prediction logger is a separate process with a bounded queue. It consumes
@@ -49,8 +53,9 @@ rollout evaluation in the GPU inference callback or vehicle control path.
 | `person_safety_monitor.py` | AGV and human tracks | `/warehouse/behavior_decision` carries the highest-risk `WAIT`, `PASS`, or `REPLAN`; `/warehouse/behavior_observation` preserves every scenario-human rollout and reason; `/warehouse/person_stop` stays compatible |
 | `CabinetRouteNavigator` | behavior decisions, Nav2 feedback | Cancels/resends once for a bounded `REPLAN`; retains goals during `WAIT`; publishes mission states and curvature speed limits |
 | `keyboard_cmd_mux.py` | person stop gate, Nav2/manual velocity | Immediate zero for `WAIT`/`REPLAN`; resumes the retained command for `PASS` |
-| `VqaNav2Mission` | camera, LiDAR, joint and attachment feedback | Detailed pick states, confidence/position/gripper gates, configurable retry and safe cleanup |
+| `VqaNav2Mission` | camera, LiDAR, joint, attachment and Gazebo station feedback | Detailed pick states, configurable retry, verified drop and the complete park/charge/ready recycle loop |
 | `latent_prediction_monitor.py` | camera, V-JEPA latent/debug, mission and behavior state | Raw frames, latent vectors, vehicle poses, rollouts, logs, metrics, summary and PNG visualizations |
+| `localization_dashboard.py` | V-JEPA pose/rollout, behavior decision, mission state, LiDAR | Answers live localization, future occupancy, planner-reason, latent-metric and lifecycle questions |
 
 No custom message package is required. Structured contracts use JSON in
 `std_msgs/String`; the existing Boolean emergency gate remains stable.
@@ -68,8 +73,12 @@ stateDiagram-v2
     VERIFY_GRASP --> ALIGN_PACKAGE: failed and retry budget remains
     VERIFY_GRASP --> RETURN_TO_DROPOFF: attached + position consistent
     RETURN_TO_DROPOFF --> PLACE_PACKAGE
-    PLACE_PACKAGE --> MISSION_COMPLETE
-    MISSION_COMPLETE --> [*]
+    PLACE_PACKAGE --> DROP: drop pose verified + detached
+    DROP --> PARK: lift and slide stowed
+    PARK --> CHARGING_HOME: Nav2 success + observed pose tolerance
+    CHARGING_HOME --> MISSION_COMPLETE: charging contact verified
+    MISSION_COMPLETE --> READY_FOR_NEXT_TASK
+    READY_FOR_NEXT_TASK --> NAVIGATE_TO_SHELF: next task
 ```
 
 The default `pick_box.sh` request already specifies `A/blue`. It resolves A01
@@ -100,14 +109,13 @@ records go to `$WAREHOUSE_LOG_DIR/behavior_decisions.jsonl`.
 
 ## Gazebo scenarios
 
-- Human #1 (`random_worker_4`) starts 3.2 m from the route and begins walking
-  in while the AGV is still 7.2 m away. The visible approach precedes the
-  vehicle stop, avoiding an artificial last-second trigger while still
-  exercising waiting and resume.
-- Human #2 (`random_worker_5`) walks a 5.8 m open-floor patrol and waits four
-  seconds at each collision-free endpoint before returning. This gives the
-  vehicle a clean resume window after the early predictive stop instead of
-  immediately sending the same worker back across its front.
+- Human #1 (`random_worker_4`) begins stationary in the east-west route at
+  `(7, -10)`. Only observed AGV proximity inside 3.2 m activates its northbound
+  exit. The planner therefore sees the static occupancy, waits on the retained
+  path, and resumes as measured motion clears the corridor.
+- Human #2 (`random_worker_5`) continuously walks a 5.8 m open-floor
+  left-right patrol. It has no endpoint dwell or mission-time trigger; the
+  planner obtains safe windows from its measured direction and velocity.
 - The other three workers retain their previous randomized behavior.
 
 ## V-JEPA future prediction and evidence
@@ -133,6 +141,7 @@ behavior_visualizations/        current frame + latent heatmaps + decision
 samples.jsonl                   timestamp, pose, phase and artifact paths
 latent_metrics.jsonl            per-origin/per-horizon comparison
 latent_prediction_metrics.png  L1, cosine and drift plots
+mission_states.jsonl            ordered state-transition evidence
 summary.json                    aggregate metrics and coverage
 ```
 
@@ -143,6 +152,26 @@ events occur.
 
 The rollout predicts representations, not RGB pixels. Figures render latent
 heatmaps rather than pretending to decode an encoder-only checkpoint.
+
+The logger retains a raw-camera ring buffer and selects the frame nearest the
+V-JEPA clip-center timestamp after inference. Every row records both frame and
+latent timestamps, their alignment error, the actual `/vjepa_latent` source,
+and the V-JEPA pose/debug source. This prevents a newer frame from being
+mislabelled as the input associated with an older latent.
+
+The async writer also publishes compact rollout evidence on
+`/vjepa/latent_prediction`. The dashboard joins it with
+`/warehouse/behavior_decision` and `/warehouse/mission_state`; query answers
+report observed risk, TTC, free window, planner reason, rollout
+horizons/metrics and lifecycle state. These are deterministic renderings of
+measured contracts, not a claimed end-to-end language decoder.
+
+Streaming QA is not a video replay. The 20 prompts are fixed from `qa.txt`,
+while the default `hybrid` answer source uses known policy rules plus the
+current stream's motion, LiDAR, worker, plan, mission-state and latent-rollout
+signals. This remains valid when a mission repeats with another shelf/color.
+The optional `video_hardcoded` mode exists only for offline reproduction of
+the supplied MP4 annotations and is never selected by the normal mission.
 
 ## Pick and place
 
@@ -204,7 +233,9 @@ baseline. `trajectory_evaluation.py` implements these comparisons.
 
 Acceptance metrics:
 
-- `MISSION_COMPLETE` is reached through every named state;
+- `MISSION_COMPLETE` is reached through every named manipulation state, then
+  terminal `READY_FOR_NEXT_TASK` is reached through ordered
+  `DROP -> PARK -> CHARGING_HOME` feedback gates;
 - zero human collision/contact samples;
 - both humans have decisions/reasons and runtime `WAIT`/`PASS` evidence;
 - all six critical latent scenes and horizons 1/2/3 have actual metrics;
@@ -223,6 +254,8 @@ Acceptance metrics:
 7. A synthetic 90-degree route stays inside aisle bounds after rounding.
 8. Latent tests verify all horizons plus frames, vectors, poses, metrics,
    summary, plots and behavior image.
+9. Recycle tests reject out-of-tolerance home poses and out-of-order lifecycle
+   transitions without using a timed charging decision.
 
 ## Failure cases and safe response
 
@@ -237,6 +270,8 @@ Acceptance metrics:
 | target absent or low confidence | safe retract/retreat and bounded retry |
 | contact/attachment inconsistent | detach if needed, retract, retry or abort |
 | slide cannot retract | abort; do not move the base |
+| payload attached or hardware not stowed after drop | abort before parking |
+| observed home pose outside charging tolerance | do not publish charging/ready |
 | missing trajectory baseline | validator reports failure, never a guessed pass |
 
 ## Implementation roadmap
@@ -245,6 +280,8 @@ Acceptance metrics:
 - Complete: requested Gazebo human behaviors and safe actuation mapping.
 - Complete: mission states, grasp retries, and continuous Shelf A route.
 - Complete: asynchronous latent rollout, evidence and metrics pipeline.
+- Complete: predictive QA joins planner, latent rollout and lifecycle topics.
+- Complete: verified drop, park, charging/home and ready-for-next-task loop.
 - Complete: unit/artifact tests and strict runtime validator.
 - Runtime gate: archive repeated baseline/candidate simulation trials on the
   target GPU/physics host before deployment.

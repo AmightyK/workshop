@@ -14,7 +14,7 @@ import math
 import os
 import threading
 import time
-from dataclasses import fields
+from dataclasses import fields, replace
 from pathlib import Path
 
 import rclpy
@@ -103,6 +103,22 @@ def known_crossing_requires_stop(
         0.0 <= crossing_forward <= 2.10
         and abs(crossing_lateral) <= 0.90
         and worker_distance <= 1.20
+    )
+
+
+def crossing_worker_requires_stop(
+    person_id: str,
+    agv: Pose2D,
+    worker: Pose2D,
+    *,
+    stopping: bool = False,
+) -> bool:
+    """Protect both travel directions near a known shared crossing."""
+    if worker_requires_stop(agv, worker, stopping=stopping):
+        return True
+    crossing = KNOWN_WORKER_CROSSINGS.get(person_id)
+    return crossing is not None and known_crossing_requires_stop(
+        agv, worker, crossing, stopping=stopping
     )
 
 
@@ -226,16 +242,40 @@ class PersonSafetyMonitor(Node):
             for name, track in self.worker_tracks.items():
                 if not track.samples or now - self.worker_timestamps[name] > POSE_TIMEOUT_S:
                     continue
-                candidates.append(
-                    self.planner.evaluate(
-                        person_id=name,
-                        scenario=self.scenarios.get(name, "general_worker"),
-                        ego=ego,
-                        ego_speed_mps=ego_speed,
-                        track=track,
-                        timestamp=now,
-                    )
+                report = self.planner.evaluate(
+                    person_id=name,
+                    scenario=self.scenarios.get(name, "general_worker"),
+                    ego=ego,
+                    ego_speed_mps=ego_speed,
+                    track=track,
+                    timestamp=now,
                 )
+                geometric_stop = crossing_worker_requires_stop(
+                    name,
+                    ego,
+                    track.latest_pose,
+                    stopping=self.stopping,
+                )
+                if geometric_stop:
+                    wait_started = self.planner.wait_started.setdefault(name, now)
+                    self.planner.clear_started.pop(name, None)
+                if geometric_stop and report.decision is Decision.PASS:
+                    report = replace(
+                        report,
+                        decision=Decision.WAIT,
+                        reason=(
+                            "worker occupies the bidirectional geometric guard "
+                            "at the shared crossing; retain path and wait"
+                        ),
+                        collision_probability=max(
+                            report.collision_probability,
+                            self.planner.config.collision_probability_threshold,
+                        ),
+                        time_to_collision_s=0.0,
+                        predicted_free_space_window_s=0.0,
+                        wait_duration_s=max(0.0, now - wait_started),
+                    )
+                candidates.append(report)
 
         if not candidates:
             self.latest_candidate_reports = {}

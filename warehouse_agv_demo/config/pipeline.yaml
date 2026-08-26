@@ -119,6 +119,17 @@ pipeline:
       - lift_aligned
       - attachment_confirmed
 
+  recycle:
+    enabled: true
+    station: charging_home
+    slot: HOME01
+    # READY is state-gated: successful drop, detached gripper, stowed lift and
+    # slide, and observed home pose. There is no elapsed-time transition.
+    require_drop_verified: true
+    require_payload_detached: true
+    require_lift_stowed: true
+    require_slide_retracted: true
+
   production_assumptions:
     - Aligned RGB-D frames are available from the RealSense camera.
     - The vacuum head exposes pressure and contact feedback.

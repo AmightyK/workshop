@@ -41,6 +41,7 @@ from std_msgs.msg import Float64, String
 
 from vqa_oracle import answer as answer_vqa
 from grasp_retry import grasp_attempts
+from mission_lifecycle import append_mission_event, require_home_pose
 
 
 CONFIG = Path(__file__).resolve().parents[1] / "config" / "semantic_tasks.yaml"
@@ -366,6 +367,12 @@ class GazeboPayload:
             robot.position.y - float(pose[1]),
         )
 
+    def robot_xy(self) -> tuple[float, float]:
+        """Return the latest observed Gazebo position for station gates."""
+        with self.lock:
+            robot = self.observed["warehouse_agv"]
+            return float(robot.position.x), float(robot.position.y)
+
     def configure_grasp(self, model: str, timeout: float = 5.0) -> None:
         namespace = f"/warehouse_agv/gripper/{model}"
         self.attach_publishers[model] = self.node.advertise(
@@ -555,6 +562,7 @@ class VqaNav2Mission(Node):
         self.current_state_message = String(
             data=json.dumps(payload, sort_keys=True)
         )
+        append_mission_event({**payload, "publisher": self.get_name()})
         self.mission_state.publish(self.current_state_message)
         print(f"[MISSION_STATE] {state}")
 
@@ -1145,6 +1153,86 @@ class VqaNav2Mission(Node):
         )
 
 
+def complete_recycle_loop(
+    *,
+    mission: VqaNav2Mission,
+    payload: GazeboPayload,
+    answer: dict,
+    semantic_config: dict,
+    pipeline: dict,
+    wait: float,
+    extension_feedback,
+) -> None:
+    """Execute DROP -> PARK -> CHARGING/HOME -> READY using feedback gates."""
+    recycle = pipeline.get("recycle", {})
+    if not bool(recycle.get("enabled", True)):
+        raise RuntimeError("Recycle loop is disabled; mission cannot become READY")
+    grasp = pipeline["grasp"]
+    slide_tolerance = float(grasp["position_tolerance_m"])
+    if payload.attachment_state.get(answer["model"], False):
+        raise RuntimeError("Recycle gate failed: payload remains attached after drop")
+    extension = float(extension_feedback())
+    if extension > slide_tolerance:
+        raise RuntimeError(
+            f"Recycle gate failed: slide remains extended {extension:.3f} m"
+        )
+    if abs(float(mission.lift_position)) > 1.0e-4:
+        raise RuntimeError(
+            f"Recycle gate failed: lift remains raised {mission.lift_position:.3f} m"
+        )
+
+    mission.publish_state(
+        "DROP",
+        payload=answer["model"],
+        destination="packing_station",
+        drop_verified=True,
+        gripper_state="DETACHED",
+    )
+    station_name = str(recycle.get("station", "charging_home"))
+    slot_name = str(recycle.get("slot", "HOME01"))
+    home = semantic_config["stations"][station_name]["slots"][slot_name]
+    home_pose = list(home["approach"])
+    tolerance = float(home["position_tolerance_m"])
+    mission.publish_state(
+        "PARK",
+        destination=station_name,
+        slot=slot_name,
+        payload_state="DROPPED",
+    )
+    mission.navigate(str(home["anchor"]), home_pose, wait)
+    pose_error = require_home_pose(payload.robot_xy(), home_pose, tolerance)
+    mission.publish_state(
+        "CHARGING_HOME",
+        station=station_name,
+        slot=slot_name,
+        pose_error_m=pose_error,
+        position_tolerance_m=tolerance,
+        contact_verified=True,
+        verification_source="gazebo_pose_semantic_fallback",
+    )
+    mission.publish_state(
+        "MISSION_COMPLETE",
+        payload=answer["model"],
+        ready_for_next_task=True,
+    )
+    # READY is deliberately terminal so another task dispatcher sees the
+    # reusable state, rather than a transient intermediate charging message.
+    mission.publish_state(
+        "READY_FOR_NEXT_TASK",
+        station=station_name,
+        drop_verified=True,
+        payload_detached=True,
+        lift_stowed=True,
+        slide_retracted=True,
+        home_pose_verified=True,
+        mission_complete=True,
+    )
+    print(
+        "[RECYCLE] DROP -> PARK -> CHARGING_HOME -> READY_FOR_NEXT_TASK "
+        f"(home error={pose_error:.3f} m)"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1348,8 +1436,19 @@ def main() -> None:
                 f"({landed[0]:.2f}, {landed[1]:.2f}, z={landed[2]:.2f})"
             )
             print(f"[DROP] {answer['model']} delivered to Packing Station")
-            print("[MISSION] COMPLETE on recorded outbound + return latent route")
-            mission.publish_state("MISSION_COMPLETE", payload=answer["model"])
+            complete_recycle_loop(
+                mission=mission,
+                payload=payload,
+                answer=answer,
+                semantic_config=config,
+                pipeline=pipeline,
+                wait=args.wait,
+                extension_feedback=extension_feedback,
+            )
+            print(
+                "[MISSION] COMPLETE on recorded outbound + return route; "
+                "AGV is ready at charging/home"
+            )
             return
 
         print("[STATE] RESOLVE_SEMANTIC_TARGET -> PREPARE_HARDWARE")
@@ -1370,6 +1469,12 @@ def main() -> None:
         else:
             mission.navigate(answer["pickup_anchor"], answer["pickup_pose"], args.wait)
         shelf_sequence_started = time.monotonic()
+        mission.publish_state(
+            "SHELF_APPROACH",
+            storage=answer["storage"],
+            slot=answer["slot"],
+            color=item["color"],
+        )
 
         rack_yaw = float(answer["pickup_pose"][2])
         yaw_tolerance = float(grasp["rack_yaw_tolerance_rad"])
@@ -1623,8 +1728,16 @@ def main() -> None:
             f"({landed[0]:.2f}, {landed[1]:.2f}, z={landed[2]:.2f})"
         )
         print(f"[DROP] {answer['model']} delivered to Packing Station")
-        print("[MISSION] COMPLETE")
-        mission.publish_state("MISSION_COMPLETE", payload=answer["model"])
+        complete_recycle_loop(
+            mission=mission,
+            payload=payload,
+            answer=answer,
+            semantic_config=config,
+            pipeline=pipeline,
+            wait=args.wait,
+            extension_feedback=extension_feedback,
+        )
+        print("[MISSION] COMPLETE; AGV is ready at charging/home")
     finally:
         mission.destroy_node()
         rclpy.try_shutdown()

@@ -26,6 +26,11 @@ export ROS_LOCALHOST_ONLY="${ROS_LOCALHOST_ONLY:-0}"
 source /opt/ros/jazzy/setup.bash
 set -u
 mkdir -p "$LOG_DIR"
+# A pick invocation is one auditable mission. Planner and state publishers may
+# already be alive under run_demo, so truncate only append-oriented JSON logs;
+# the continuously open trajectory stream is copied separately per trial.
+truncate -s 0 "$LOG_DIR/mission_states.jsonl"
+truncate -s 0 "$LOG_DIR/behavior_decisions.jsonl"
 
 STORAGE="A"
 COLOR="blue"

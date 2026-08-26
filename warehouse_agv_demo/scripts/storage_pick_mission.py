@@ -35,6 +35,7 @@ from latent_route import (
     prune_hard_corner_checkpoints,
     round_hard_corners,
 )
+from mission_lifecycle import append_mission_event
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -155,8 +156,11 @@ def available_objects(tasks: dict, storage: str) -> dict[str, tuple[str, dict]]:
 
 
 class CabinetRouteNavigator(Node):
-    def __init__(self) -> None:
+    def __init__(self, tracking_profile: str = "candidate") -> None:
         super().__init__("cabinet_route_navigator")
+        if tracking_profile not in {"baseline", "candidate"}:
+            raise ValueError("tracking_profile must be baseline or candidate")
+        self.tracking_profile = tracking_profile
         self.client = ActionClient(self, NavigateToPose, "/navigate_to_pose")
         self.corridor_client = ActionClient(
             self, NavigateThroughPoses, "/navigate_through_poses"
@@ -200,6 +204,7 @@ class CabinetRouteNavigator(Node):
         self.current_state_message = String(
             data=json.dumps(payload, sort_keys=True)
         )
+        append_mission_event({**payload, "publisher": self.get_name()})
         self.mission_state.publish(self.current_state_message)
         self.last_state_publish = time.monotonic()
         self.get_logger().info(f"MISSION_STATE {state}")
@@ -400,15 +405,26 @@ class CabinetRouteNavigator(Node):
         # Nav2 to stop immediately at the pose where the robot already sits.
         values = segment.poses[1:] if len(segment.poses) > 1 else segment.poses
         threshold = float(self.tracking.get("hard_turn_threshold_rad", 0.75))
-        self.active_corner_points = hard_corner_points(
-            values, angle_threshold_rad=threshold
-        )
-        values = round_hard_corners(
-            values,
-            angle_threshold_rad=threshold,
-            radius_m=float(self.tracking.get("corner_rounding_radius_m", 0.90)),
-            curve_samples=int(self.tracking.get("corner_curve_samples", 3)),
-        )
+        if self.tracking_profile == "candidate":
+            self.active_corner_points = hard_corner_points(
+                values, angle_threshold_rad=threshold
+            )
+            values = round_hard_corners(
+                values,
+                angle_threshold_rad=threshold,
+                radius_m=float(
+                    self.tracking.get("corner_rounding_radius_m", 0.90)
+                ),
+                curve_samples=int(
+                    self.tracking.get("corner_curve_samples", 3)
+                ),
+            )
+        else:
+            # Reproduce the pre-fix route for same-world A/B validation: the
+            # apex is deleted, no corner speed governor is active, and NavFn
+            # connects distant checkpoints with the old diagonal.
+            self.active_corner_points = np.empty((0, 2), dtype=np.float64)
+            values = prune_hard_corner_checkpoints(values)
         values = orient_route_tangents(values)
         if final_yaw_from_path and len(values) >= 2:
             final_delta = values[-1, :2] - values[-2, :2]
@@ -600,6 +616,12 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--wait", type=float, default=30.0)
     parser.add_argument("--retries", type=int, default=2)
+    parser.add_argument(
+        "--tracking-profile",
+        choices=("candidate", "baseline"),
+        default="candidate",
+        help="candidate is the normal rounded/limited route; baseline is validation-only",
+    )
     args = parser.parse_args()
     if args.wait <= 0.0 or args.retries < 0:
         parser.error("wait phải dương và retries không được âm")
@@ -698,7 +720,7 @@ def main() -> None:
             check=True,
         )
         rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-        navigator = CabinetRouteNavigator()
+        navigator = CabinetRouteNavigator(args.tracking_profile)
         try:
             navigator.publish_state(
                 "RETURN_TO_DROPOFF", slot=slot, destination="packing_station"
@@ -741,7 +763,7 @@ def main() -> None:
     # Keep Python's KeyboardInterrupt handler so Ctrl+C can cancel the active
     # Nav2 goal before shutting the ROS context down.
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    navigator = CabinetRouteNavigator()
+    navigator = CabinetRouteNavigator(args.tracking_profile)
     interrupted = False
     try:
         navigator.publish_state(
@@ -811,7 +833,7 @@ def main() -> None:
     # along the exact same forward latent sequence used during mapping.
     if selected_target is None:
         rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-        navigator = CabinetRouteNavigator()
+        navigator = CabinetRouteNavigator(args.tracking_profile)
         try:
             navigator.publish_state(
                 "SHELF_APPROACH", storage=storage, slot=slot, color=color
@@ -856,7 +878,7 @@ def main() -> None:
         return
 
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    navigator = CabinetRouteNavigator()
+    navigator = CabinetRouteNavigator(args.tracking_profile)
     try:
         navigator.publish_state(
             "RETURN_TO_DROPOFF", slot=slot, destination="packing_station"
