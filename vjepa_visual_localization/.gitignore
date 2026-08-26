@@ -4,5 +4,9 @@ __pycache__/
 *.pyc
 outputs/*
 !outputs/.gitkeep
+# The compact visual map is a required runtime artifact for the warehouse
+# demo. Keep generated prediction logs and experiment outputs ignored.
+!outputs/autonomous_map_dense/
+!outputs/autonomous_map_dense/*
 data/*
 !data/.gitkeep

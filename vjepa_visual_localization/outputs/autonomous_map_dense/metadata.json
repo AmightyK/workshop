@@ -1,0 +1,399 @@
+{
+  "camera_pipeline": {
+    "checkpoint": "facebook/vjepa2-vitl-fpc64-256",
+    "raw_video": {
+      "aspect_label": "16:9",
+      "aspect_ratio": 1.7777777777777777,
+      "fps": 10.0,
+      "frame_count": 3761,
+      "height": 360,
+      "is_square": false,
+      "matches_expected_aspect": true,
+      "path": "/home/amightyk05/workshop/vjepa_visual_localization/data/autonomous_mapping_dense/video.mp4",
+      "width": 640
+    },
+    "vjepa_input": {
+      "aspect_label": "1:1",
+      "aspect_ratio": 1.0,
+      "center_crop": true,
+      "crop_size": {
+        "height": 256,
+        "width": 256
+      },
+      "height": 256,
+      "is_square": true,
+      "note": "resize gi\u1eef t\u1ec9 l\u1ec7 r\u1ed3i center-crop; kh\u00f4ng k\u00e9o m\u00e9o \u1ea3nh g\u1ed1c th\u00e0nh vu\u00f4ng",
+      "resize_shortest_edge": 292,
+      "width": 256
+    }
+  },
+  "config": {
+    "evaluation": {
+      "live_motion_window_sec": 1.0,
+      "min_translation_m": 0.1
+    },
+    "mapping": {
+      "batch_size": 1
+    },
+    "model": {
+      "checkpoint": "facebook/vjepa2-vitl-fpc64-256",
+      "device": "cuda",
+      "dtype": "float16",
+      "normalize_embeddings": true,
+      "return_local_tokens": true
+    },
+    "online": {
+      "camera_topic": "/vjepa/camera/image_raw",
+      "debug_topic": "/vjepa_localization/debug",
+      "frame_id": "map",
+      "latent_topic": "/vjepa_latent",
+      "pose_topic": "/vjepa_pose",
+      "position_variance_m2": 0.25,
+      "yaw_variance_rad2": 0.12
+    },
+    "pose_estimator": {
+      "method": "top1",
+      "weighted_alpha": 10.0,
+      "weighted_radius_m": 2.0
+    },
+    "retrieval": {
+      "global_top_k": 20,
+      "similarity": "cosine"
+    },
+    "synchronization": {
+      "pose_method": "interpolate",
+      "pose_tolerance_sec": 0.2,
+      "video_time_offset_sec": 0.0
+    },
+    "temporal_tracking": {
+      "base_translation_gate_m": 0.65,
+      "base_yaw_gate_rad": 0.55,
+      "camera_forward_expansion_threshold": 0.035,
+      "camera_max_forward_translation_z": -0.75,
+      "camera_min_essential_inlier_ratio": 0.35,
+      "camera_min_fit_inlier_ratio": 0.14,
+      "candidate_pool": 0,
+      "distance_penalty": 0.04,
+      "enabled": true,
+      "forward_progress_bonus": 0.01,
+      "initial_route_index": 0,
+      "initial_route_window": 3,
+      "max_angular_speed_radps": 2.4,
+      "max_index_advance_per_sec": 4.0,
+      "max_linear_speed_mps": 1.5,
+      "max_translation_gate_m": 2.2,
+      "max_yaw_gate_rad": 2.8,
+      "relocalization_cluster_radius_m": 1.2,
+      "relocalization_frames": 4,
+      "relocalization_max_jump_m": 4.0,
+      "relocalization_min_similarity": 0.9,
+      "smoothing_alpha": 0.82,
+      "stationary_translation_gate_m": 0.18,
+      "yaw_penalty": 0.015
+    },
+    "video": {
+      "clip_duration_sec": 1.0,
+      "num_sampled_frames": 4,
+      "sampling": "uniform",
+      "stride_sec": 0.5
+    },
+    "warehouse_experiment": {
+      "action_server_timeout_sec": 45.0,
+      "avoidance_angular_speed_radps": 0.12,
+      "goal_retries": 2,
+      "goal_retry_delay_sec": 2.0,
+      "goal_timeout_sec": 100.0,
+      "inventory": "../warehouse_agv_demo/config/inventory_locations.yaml",
+      "mapping_waypoints": [
+        {
+          "name": "dock_exit",
+          "x": 10.8,
+          "y": -10.0,
+          "yaw": 3.14159
+        },
+        {
+          "name": "east_cross_aisle",
+          "x": 5.5,
+          "y": -10.0,
+          "yaw": 3.14159
+        },
+        {
+          "name": "central_south",
+          "x": -2.0,
+          "y": -10.0,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_A_staging",
+          "x": -2.0,
+          "y": -2.3,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A03_camera_approach",
+          "x": -4.31528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A02_camera_approach",
+          "x": -5.03528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A01_camera_approach",
+          "x": -6.25528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_B_staging",
+          "x": -2.0,
+          "y": 0.8,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B03_camera_approach",
+          "x": -4.31528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B02_camera_approach",
+          "x": -5.03528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B01_camera_approach",
+          "x": -6.25528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_C_staging",
+          "x": -2.5,
+          "y": 3.8,
+          "yaw": 3.14159
+        },
+        {
+          "name": "C03_camera_approach",
+          "x": -4.31528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "C02_camera_approach",
+          "x": -5.03528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "C01_camera_approach",
+          "x": -6.25528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_C_exit",
+          "x": -2.0,
+          "y": 3.8,
+          "yaw": -1.5708
+        },
+        {
+          "name": "storage_B_return",
+          "x": -2.0,
+          "y": 0.8,
+          "yaw": -1.5708
+        },
+        {
+          "name": "storage_A_return",
+          "x": -2.0,
+          "y": -2.3,
+          "yaw": -1.5708
+        },
+        {
+          "name": "central_return",
+          "x": -1.5,
+          "y": -10.0,
+          "yaw": -1.5708
+        },
+        {
+          "name": "south_center",
+          "x": 4.0,
+          "y": -16.0,
+          "yaw": 0.0
+        },
+        {
+          "name": "packing_station_view",
+          "x": 10.8,
+          "y": -9.0,
+          "yaw": -1.5708
+        },
+        {
+          "name": "charging_dock",
+          "x": 13.9,
+          "y": -10.6,
+          "yaw": 3.14159
+        }
+      ],
+      "obstacle_detection_distance_m": 2.2,
+      "obstacle_front_half_angle_rad": 0.65,
+      "query_waypoints": [
+        {
+          "name": "dock_exit",
+          "x": 10.8,
+          "y": -10.0,
+          "yaw": 3.14159
+        },
+        {
+          "name": "east_cross_aisle",
+          "x": 5.5,
+          "y": -10.0,
+          "yaw": 3.14159
+        },
+        {
+          "name": "central_south",
+          "x": -2.0,
+          "y": -10.0,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_A_staging",
+          "x": -2.0,
+          "y": -2.3,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A03_camera_approach",
+          "x": -4.31528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A02_camera_approach",
+          "x": -5.03528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "A01_camera_approach",
+          "x": -6.25528,
+          "y": -1.94,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_B_staging",
+          "x": -2.0,
+          "y": 0.8,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B03_camera_approach",
+          "x": -4.31528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B02_camera_approach",
+          "x": -5.03528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "B01_camera_approach",
+          "x": -6.25528,
+          "y": 1.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_C_staging",
+          "x": -2.5,
+          "y": 3.8,
+          "yaw": 3.14159
+        },
+        {
+          "name": "C03_camera_approach",
+          "x": -4.31528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "C02_camera_approach",
+          "x": -5.03528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "C01_camera_approach",
+          "x": -6.25528,
+          "y": 4.06,
+          "yaw": 1.5708
+        },
+        {
+          "name": "storage_C_exit",
+          "x": -2.0,
+          "y": 3.8,
+          "yaw": -1.5708
+        },
+        {
+          "name": "storage_B_return",
+          "x": -2.0,
+          "y": 0.8,
+          "yaw": -1.5708
+        },
+        {
+          "name": "storage_A_return",
+          "x": -2.0,
+          "y": -2.3,
+          "yaw": -1.5708
+        },
+        {
+          "name": "central_return",
+          "x": -1.5,
+          "y": -10.0,
+          "yaw": -1.5708
+        },
+        {
+          "name": "south_center",
+          "x": 4.0,
+          "y": -16.0,
+          "yaw": 0.0
+        },
+        {
+          "name": "packing_station_view",
+          "x": 10.8,
+          "y": -9.0,
+          "yaw": -1.5708
+        },
+        {
+          "name": "charging_dock",
+          "x": 13.9,
+          "y": -10.6,
+          "yaw": 3.14159
+        }
+      ],
+      "status_interval_sec": 1.0
+    }
+  },
+  "embedding_dimension": 1024,
+  "embedding_dtype": "float16",
+  "encoder": {
+    "architecture": "V-JEPA 2",
+    "backend": "huggingface_transformers",
+    "checkpoint": "facebook/vjepa2-vitl-fpc64-256",
+    "device": "cuda",
+    "dtype": "float16",
+    "normalize_embeddings": true,
+    "return_local_tokens": true
+  },
+  "mapping_run": "/home/amightyk05/workshop/vjepa_visual_localization/data/autonomous_mapping_dense",
+  "num_entries": 751,
+  "pose_columns": [
+    "x",
+    "y",
+    "z",
+    "yaw"
+  ]
+}
