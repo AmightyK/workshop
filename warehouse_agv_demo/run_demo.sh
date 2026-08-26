@@ -13,6 +13,13 @@ NAV_LOCALIZATION_SOURCE="${WAREHOUSE_NAV_LOCALIZATION_SOURCE:-ground_truth}"
 NAV_MAX_LINEAR_SPEED="${WAREHOUSE_NAV_MAX_LINEAR_SPEED:-1.35}"
 PEOPLE_SPEED_SCALE="${WAREHOUSE_PEOPLE_SPEED_SCALE:-0.70}"
 LOG_DIR="${WAREHOUSE_LOG_DIR:-/tmp/warehouse_agv_demo}"
+# Seconds to wait before deciding a freshly spawned component is alive. A
+# crash from a missing interpreter or an unbound variable in a sourced ROS
+# setup file happens well inside this window.
+HEALTH_DELAY="${WAREHOUSE_HEALTH_DELAY:-0.4}"
+# Gazebo floods stderr with EGL probe warnings and duplicate-joint notices
+# that bury the startup report. Set false to see the raw stream.
+DEMO_QUIET="${WAREHOUSE_DEMO_QUIET:-true}"
 DASHBOARD_REFRESH_HZ="${WAREHOUSE_DASHBOARD_REFRESH_HZ:-32}"
 DASHBOARD_MAP_REFRESH_HZ="${WAREHOUSE_DASHBOARD_MAP_REFRESH_HZ:-5}"
 DASHBOARD_ODOM_PROJECTION="${WAREHOUSE_VJEPA_ODOM_PROJECTION:-false}"
@@ -54,9 +61,10 @@ if [[ -t 1 ]]; then
   CYAN=$'\033[36m'
   GREEN=$'\033[32m'
   YELLOW=$'\033[33m'
+  RED=$'\033[31m'
   RESET=$'\033[0m'
 else
-  BOLD="" CYAN="" GREEN="" YELLOW="" RESET=""
+  BOLD="" CYAN="" GREEN="" YELLOW="" RED="" RESET=""
 fi
 
 printf '%s\n' "${CYAN}${BOLD}╭────────────────────────────────────────────────────────────╮${RESET}"
@@ -85,6 +93,8 @@ fi
 
 CHILD_PIDS=()
 PID_FILES=()
+STARTED_COMPONENTS=()
+FAILED_COMPONENTS=()
 PARTITION_KEY="${GZ_PARTITION//[^a-zA-Z0-9_.-]/_}"
 
 start_component() {
@@ -101,7 +111,22 @@ start_component() {
     printf '%s\n' "$process_pid" > "$pid_file"
     PID_FILES+=("$pid_file")
   fi
-  printf '%s\n' "  ${GREEN}●${RESET} $name started (log: $LOG_DIR/$name.log)"
+  # Always record a pid under the component name so demo_status.sh can report
+  # on every component, not just the two that own an explicit pid file.
+  printf '%s\n' "$process_pid" > "$LOG_DIR/$name.pid"
+  PID_FILES+=("$LOG_DIR/$name.pid")
+  # A spawn that dies immediately used to still print "started", which made a
+  # broken run look identical to a healthy one. Report what actually happened.
+  sleep "$HEALTH_DELAY"
+  if kill -0 "$process_pid" 2>/dev/null; then
+    printf '%s\n' "  ${GREEN}●${RESET} $name started (log: $LOG_DIR/$name.log)"
+    STARTED_COMPONENTS+=("$name")
+  else
+    local reason
+    reason="$(tail -n 1 "$LOG_DIR/$name.log" 2>/dev/null || true)"
+    printf '%s\n' "  ${RED}✘${RESET} $name FAILED: ${reason:-see $LOG_DIR/$name.log}"
+    FAILED_COMPONENTS+=("$name")
+  fi
 }
 
 # Random LiDAR-visible workers are a separate process so the world remains
@@ -293,5 +318,29 @@ trap cleanup EXIT INT TERM
   echo "Failed to detach all selectable cartons before starting physics" >&2
 ) &
 
+# Startup verdict. Components that pull large dependencies on first run (the
+# uv-managed V-JEPA nodes) are alive here but not yet showing a window, so the
+# report distinguishes "spawned" from "ready" and points at demo_status.sh.
+printf '%s\n' "${CYAN}${BOLD}──────────────────────────────────────────────────────────────${RESET}"
+if [[ ${#FAILED_COMPONENTS[@]} -gt 0 ]]; then
+  printf '%s\n' "  ${RED}✘ ${#FAILED_COMPONENTS[@]} component(s) FAILED:${RESET} ${FAILED_COMPONENTS[*]}"
+  printf '%s\n' "    logs: $LOG_DIR/<name>.log"
+else
+  printf '%s\n' "  ${GREEN}✔ all ${#STARTED_COMPONENTS[@]} components spawned${RESET}"
+fi
+printf '%s\n' "  Live status at any time:  ${BOLD}$DEMO_DIR/demo_status.sh${RESET}"
+printf '%s\n' "  On first run the V-JEPA nodes download several GB of dependencies"
+printf '%s\n' "  before their windows appear - not a hang. demo_status.sh shows which."
+printf '%s\n' "${CYAN}${BOLD}──────────────────────────────────────────────────────────────${RESET}"
+
 # Official warehouse layout with the custom camera-equipped AMR and task layer.
-gz sim "$DEMO_DIR/worlds/tugbot_warehouse_custom.sdf" "$@"
+# Gazebo's EGL probe warnings and duplicate-joint notices are expected on this
+# setup and otherwise scroll the report above out of view. Filtering happens in
+# a process substitution so gz sim keeps its own exit status.
+GZ_NOISE='libEGL warning|^pci id for fd|NameManager::issueNewName|QStandardPaths: runtime directory'
+if is_enabled "$DEMO_QUIET"; then
+  gz sim "$DEMO_DIR/worlds/tugbot_warehouse_custom.sdf" "$@" \
+    2> >(grep -vE "$GZ_NOISE" >&2 || true)
+else
+  gz sim "$DEMO_DIR/worlds/tugbot_warehouse_custom.sdf" "$@"
+fi

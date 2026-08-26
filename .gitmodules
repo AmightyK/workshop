@@ -1,0 +1,3 @@
+[submodule "AIWaiter"]
+	path = AIWaiter
+	url = https://github.com/ThinhQuocLe007/AIWaiter.git
