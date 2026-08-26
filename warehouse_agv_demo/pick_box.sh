@@ -241,6 +241,38 @@ else
   echo "${YELLOW}[WORKERS] Reset topic unavailable; restart ./run_demo.sh to load the updated worker controller.${RESET}"
 fi
 
+# Fast path for the normal interactive workflow: run_demo.sh already started
+# every dependency. The old fallback below intentionally remains for starting
+# pick_box.sh on a cold machine, but repeating its topic/action discovery on
+# every manual pickup was the source of the visible ~20 s delay.
+if [[ "${WAREHOUSE_PICK_FAST_START:-true}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]; then
+  FAST_START_READY=true
+  # One ROS CLI process is noticeably cheaper than five separate topic/action
+  # discovery calls (each can take 1–2 s on a busy DDS graph).  The action list
+  # is the useful readiness signal here: both Nav2 servers exist only after
+  # bt_navigator has created its active action endpoints.  The mission still
+  # performs its lifecycle check in Python before sending the goal.
+  FAST_ACTIONS="$(ros2 action list 2>/dev/null || true)"
+  grep -Fx "/navigate_to_pose" <<<"$FAST_ACTIONS" >/dev/null || FAST_START_READY=false
+  grep -Fx "/navigate_through_poses" <<<"$FAST_ACTIONS" >/dev/null || FAST_START_READY=false
+  if "$FAST_START_READY"; then
+    FAST_MISSION_ARGS=(--storage "$STORAGE" --color "$COLOR")
+    if "$DELIVER"; then
+      FAST_MISSION_ARGS+=(--deliver)
+    else
+      FAST_MISSION_ARGS+=(--pick-only)
+    fi
+    if "$ROUTE_ONLY"; then
+      FAST_MISSION_ARGS+=(--route-only)
+    fi
+    if "$RESUME_DELIVERY"; then
+      FAST_MISSION_ARGS+=(--resume-delivery)
+    fi
+    echo "${GREEN}[PICK BOX] Fast start: Gazebo/Nav2 đã sẵn sàng → chạy mission ngay.${RESET}"
+    exec "$DEMO_DIR/run_storage_pick.sh" "${FAST_MISSION_ARGS[@]}"
+  fi
+fi
+
 BRIDGE_READY=false
 for _ in $(seq 1 16); do
   if ros2 topic list 2>/dev/null | grep -Fx "/camera" >/dev/null; then
@@ -256,6 +288,17 @@ if ! "$BRIDGE_READY"; then
 fi
 wait_for_ros_name topic /camera 30
 wait_for_ros_name topic /scan 30
+
+# Start Nav2 as soon as the Gazebo bridge exposes the robot sensors.  V-JEPA
+# and the dashboard can warm in parallel; starting them first made a cold
+# manual `pick_box.sh` invocation wait through several independent startup
+# sequences before Nav2 could accept the first goal.
+if ! ros2 action list 2>/dev/null | grep -Fx "/navigate_to_pose" >/dev/null; then
+  echo "[PICK BOX] Starting Nav2 while camera/V-JEPA dependencies warm..."
+  setsid "$DEMO_DIR/run_nav2.sh" use_rviz:=True \
+    > /tmp/warehouse_pick_box_nav2.log 2>&1 &
+  NAV2_PID=$!
+fi
 
 if ! ros2 topic list 2>/dev/null | grep -Fx "$VJEPA_IMAGE_TOPIC" >/dev/null; then
   echo "[PICK BOX] Starting threaded ROS 2 DDS image relay..."
@@ -338,12 +381,6 @@ if "$VJEPA_EXPECTED" && ! "$RESUME_DELIVERY"; then
   fi
 fi
 
-if ! ros2 action list 2>/dev/null | grep -Fx "/navigate_to_pose" >/dev/null; then
-  echo "[PICK BOX] Starting Nav2 and RViz..."
-  setsid "$DEMO_DIR/run_nav2.sh" use_rviz:=True \
-    > /tmp/warehouse_pick_box_nav2.log 2>&1 &
-  NAV2_PID=$!
-fi
 wait_for_ros_name action /navigate_to_pose 60
 wait_for_lifecycle_active /bt_navigator 60
 wait_for_ros_name topic /nav/localization_status 60

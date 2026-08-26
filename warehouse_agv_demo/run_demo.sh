@@ -21,6 +21,8 @@ DASHBOARD_CAMERA_TOPIC="${WAREHOUSE_DASHBOARD_CAMERA_TOPIC:-/camera}"
 VJEPA_IMAGE_FPS="${WAREHOUSE_VJEPA_IMAGE_FPS:-32.0}"
 VJEPA_LOCALIZER_ENABLED="${WAREHOUSE_VJEPA_LOCALIZER:-true}"
 VJEPA_PREDICTION_LOGGER_ENABLED="${WAREHOUSE_VJEPA_PREDICTION_LOGGER:-true}"
+UDP_COMMAND_BRIDGE_ENABLED="${WAREHOUSE_UDP_COMMAND_BRIDGE:-true}"
+UDP_COMMAND_BIND="${WAREHOUSE_UDP_BIND:-0.0.0.0:45455}"
 
 # Keep this demo isolated from stale Gazebo discovery sessions. The bridge uses
 # the same default partition, while still allowing an explicit override.
@@ -113,6 +115,16 @@ start_component random_people "" \
 # if this integrated stack was explicitly disabled.
 if is_enabled "${WAREHOUSE_AUTOSTART_BRIDGE:-true}"; then
   start_component ros_bridge "" "$DEMO_DIR/run_bridge.sh"
+fi
+
+# AIWaiter runs on a different machine and sends only v1 JSON over UDP. Keep
+# this receiver in the same lifecycle as the Gazebo demo so every dependency
+# is already warming while the operator waits for the desktop windows.
+if is_enabled "$UDP_COMMAND_BRIDGE_ENABLED"; then
+  start_component udp_command_bridge "" \
+    "$DEMO_DIR/run_udp_command_bridge.sh" \
+    --bind "$UDP_COMMAND_BIND"
+  printf '%s\n' "  ${GREEN}●${RESET} AIWaiter UDP       : listening on $UDP_COMMAND_BIND"
 fi
 
 # A latest-frame worker republishes the Gazebo image through a dedicated ROS 2

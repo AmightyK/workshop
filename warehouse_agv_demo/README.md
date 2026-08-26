@@ -66,6 +66,37 @@ floor.
 | B | B01 blue `distractor_blue_B01` | B02 red `special_red_box` | B03 green `distractor_green_B03` |
 | C | C01 blue `distractor_blue_C01` | C02 red `distractor_red_C02` | C03 green `special_green_box` |
 
+## UDP commands from AIWaiter
+
+Hướng dẫn bàn giao đầy đủ cho phía AIWaiter nằm ở
+[`docs/AIWAITER_UDP_INTEGRATION.md`](docs/AIWAITER_UDP_INTEGRATION.md).
+
+`./run_demo.sh` starts `./run_udp_command_bridge.sh` automatically (or run the
+wrapper separately if Gazebo is already running). It listens on UDP
+`0.0.0.0:45455`, decodes the v1 JSON datagrams from `AI_asr/src/robot_link`,
+and publishes only to `/cmd_vel_keyboard` locally. The other machine therefore
+does not need ROS or DDS.
+
+The bridge accepts the future control actions `STOP`, `FORWARD`, `LEFT`,
+`RIGHT`, `BACKWARD`, and `RESUME` (case-insensitive). `LEFT`/`RIGHT` use
+`angle_deg` when supplied and default to 90°. `STOP` holds keyboard zero and
+pauses the active A-pick mission; `RESUME` releases the override and continues
+that same mission. Navigate actions are intentionally restricted to Storage A,
+which is the current physical task.
+
+Example packet:
+
+```json
+{"v":1,"kind":"control","action":{"type":"control","verb":"LEFT","angle_deg":45},"session":"s1","seq":4}
+```
+
+Khi chạy thủ công `./pick_box.sh` sau khi `run_demo.sh` đã sẵn sàng, script
+tự nhận diện camera/Nav2 active và đi thẳng vào mission lõi, không lặp chuỗi
+startup khoảng 20 giây. Nếu chạy trong lúc stack còn đang khởi động, Nav2 cũng
+được bật ngay sau khi camera/LiDAR bridge sẵn sàng và chạy song song với V-JEPA.
+Đặt `WAREHOUSE_PICK_FAST_START=false` nếu cần dùng
+đường fallback đầy đủ để chẩn đoán máy chưa khởi động đủ thành phần.
+
 ## Nav2 and dynamic obstacles
 
 Nav2 uses the locally rebuilt `maps/warehouse_lidar.yaml` global map. It is
