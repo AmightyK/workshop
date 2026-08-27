@@ -70,9 +70,56 @@ from src.evaluation.warehouse_context import (
 
 TELEMETRY_WINDOW = "VL-JEPA Warehouse Streaming QA"
 MAP_WINDOW = "Warehouse Map - Truth GPS & Planning"
+QUESTIONS_WINDOW = "Warehouse Questions - 5 of 20"
 STREAMING_WIDTH = 1440
 STREAMING_HEIGHT = 568
+# Questions window contains only the five cards. Its former 62 px header and
+# 52 px footer duplicated information already visible in the cards.
+QUESTIONS_WIDTH = 492
+QUESTIONS_HEIGHT = 698
 DASHBOARD_OBSTACLE_DISTANCE_M = 4.0
+CAMERA_HORIZONTAL_FOV_RAD = 1.22
+CAMERA_FORWARD_OFFSET_M = -0.1915625
+CAMERA_PERSON_MAX_DISTANCE_M = 8.0
+
+# Five questions selected from the existing twenty-question bank after the
+# complete dock -> A01 blue-box pick -> Packing -> charging route was replayed.
+# Their answers are deliberately recomputed from the current snapshot, rather
+# than tied to a special waypoint or a memorized yes/no event.
+WAREHOUSE_MODEL_ANSWER_CHOICES: dict[str, tuple[tuple[str, str], ...]] = {
+    "q07": (
+        ("none", "Chưa có vật cản gần"),
+        ("left", "Vật cản ở bên trái"),
+        ("center", "Vật cản ở chính giữa"),
+        ("right", "Vật cản ở bên phải"),
+    ),
+    "q14": (
+        ("clear", "Đủ rộng để tiếp tục"),
+        ("narrow", "Hơi hẹp, cần giảm tốc"),
+        ("blocked", "Không đủ khoảng trống an toàn"),
+    ),
+    "q13": (
+        ("none", "Không phát hiện người ở phía trước"),
+        ("far", "Có người ở phía xa"),
+        ("near_clear", "Có người ở gần nhưng không chắn đường"),
+        ("on_path_stationary", "Có người đứng yên phía trước robot"),
+        ("on_path_moving", "Có người đang di chuyển phía trước robot"),
+    ),
+    "mission_state": (
+        ("outbound", "Đang đi từ dock tới kệ"),
+        ("align", "Đang căn chỉnh trước hộp"),
+        ("grasp", "Đang gắp và kiểm tra hộp"),
+        ("transport", "Đang chở hộp tới điểm giao"),
+        ("finish", "Đang hoàn tất / chờ nhiệm vụ mới"),
+    ),
+    "q20": (
+        ("stop", "Dừng và giữ vị trí"),
+        ("straight", "Đi thẳng theo lộ trình"),
+        ("left", "Cua trái và đi chậm"),
+        ("right", "Cua phải và đi chậm"),
+        ("replan", "Đổi sang đường khác"),
+    ),
+}
 
 WAREHOUSE_ANSWER_CANDIDATES: dict[str, tuple[str, ...]] = {
     "q01": ("Robot đang đứng yên.", "Robot đang di chuyển chậm.", "Robot đang di chuyển nhanh."),
@@ -87,7 +134,13 @@ WAREHOUSE_ANSWER_CANDIDATES: dict[str, tuple[str, ...]] = {
     "q10": ("Chưa cần né.", "Né sang trái.", "Né sang phải."),
     "q11": ("Lối đi phía trước đang rộng ra.", "Lối đi phía trước vẫn ổn định.", "Lối đi đang hẹp lại."),
     "q12": ("Robot đang giữ gần giữa lối.", "Robot đang lệch nhẹ sang trái.", "Robot đang lệch nhẹ sang phải."),
-    "q13": ("Không có người ở gần phía trước.", "Có người phía trước đang đứng yên.", "Có người phía trước đang di chuyển."),
+    "q13": (
+        "Không phát hiện người ở phía trước.",
+        "Có người ở phía xa.",
+        "Có người ở gần nhưng không chắn đường.",
+        "Có người đứng yên phía trước robot.",
+        "Có người đang di chuyển phía trước robot.",
+    ),
     "q14": (
         "Khoảng trống phía trước đủ rộng để đi qua.",
         "Khoảng trống phía trước hơi hẹp, robot nên giảm tốc.",
@@ -96,9 +149,15 @@ WAREHOUSE_ANSWER_CANDIDATES: dict[str, tuple[str, ...]] = {
     "q15": ("Phía trước tiếp tục là lối đi.", "Phía trước là một khúc cua trái.", "Phía trước là một khúc cua phải.", "Phía trước là lối cụt."),
     "q16": ("Chưa thấy vùng che khuất nguy hiểm.", "Vùng ngay sau vật cản đang bị che khuất.", "Hai bên góc kệ đang bị che khuất."),
     "q17": ("Lối đi sẽ tiếp tục mở ra phía trước.", "Vật phía trước sẽ lớn dần.", "Khung cảnh sẽ xoay dần sang trái.", "Khung cảnh sẽ xoay dần sang phải."),
-    "q18": ("Mốc hiện tại là khu sạc.", "Mốc hiện tại là khu đóng gói.", "Mốc hiện tại là khu kệ.", "Khu vực hiện tại chưa có mốc rõ ràng."),
     "q19": ("Có, khu vực này khá dễ nhầm với các nhịp kệ khác.", "Không, khu vực này có đặc điểm dễ nhận ra."),
     "q20": ("Dừng.", "Đi thẳng và giữ tốc độ hiện tại.", "Cua trái và đi chậm.", "Cua phải và đi chậm.", "Đổi sang đường khác."),
+    "mission_state": (
+        "Robot đang đi từ dock tới kệ.",
+        "Robot đang căn chỉnh trước hộp.",
+        "Robot đang gắp và kiểm tra hộp.",
+        "Robot đang chở hộp tới điểm giao.",
+        "Robot đang hoàn tất hoặc chờ nhiệm vụ mới.",
+    ),
 }
 
 WAREHOUSE_ANSWER_DISTRACTORS: dict[str, tuple[str, ...]] = {
@@ -125,9 +184,15 @@ WAREHOUSE_ANSWER_DISTRACTORS: dict[str, tuple[str, ...]] = {
     "q15": ("Phía trước có ngã rẽ trái.", "Phía trước có ngã rẽ phải.", "Phía trước là ngã tư.", "Khúc cua phía trước chưa nhìn rõ.", "Lối đi phía trước đang mở rộng."),
     "q16": ("Góc trái phía trước đang bị che khuất.", "Góc phải phía trước đang bị che khuất.", "Phía sau người đi bộ đang bị che khuất.", "Phía sau thùng hàng đang bị che khuất.", "Các khe giữa hai nhịp kệ đang bị che khuất."),
     "q17": ("Vật phía trước sẽ trôi sang trái.", "Vật phía trước sẽ trôi sang phải.", "Lối đi sẽ hẹp lại.", "Lối đi sẽ rộng ra.", "Một người sẽ đi ngang qua phía trước."),
-    "q18": ("Mốc hiện tại là biển chữ trên kệ.", "Mốc hiện tại là ô màu trên kệ.", "Mốc hiện tại là vạch vàng dưới sàn.", "Mốc hiện tại là pad trắng dưới sàn.", "Các mốc hiện tại khá giống nhau."),
     "q19": ("Khu vực này dễ nhầm vì các kệ lặp lại.", "Khu vực này dễ nhận nhờ biển chữ.", "Khu vực này dễ nhận nhờ ô màu.", "Khu vực này dễ nhận nhờ pad sàn.", "Cần thêm quan sát để phân biệt khu vực.", "Khu vực này không giống đoạn vừa đi qua."),
     "q20": ("Đi chậm và giữ giữa lối.", "Giảm tốc rồi dừng.", "Đi thẳng rồi lệch trái.", "Đi thẳng rồi lệch phải.", "Chờ thêm một quan sát.", "Tiếp tục nhưng giữ khoảng cách."),
+    "mission_state": (
+        "Robot vừa rời dock và đang tăng tốc.",
+        "Robot đang chờ lối đi tới kệ thông thoáng.",
+        "Robot đã tới kệ nhưng chưa bắt đầu căn chỉnh.",
+        "Robot đang rời kệ với payload trên khay.",
+        "Robot đã giao hàng và đang trở về trạm sạc.",
+    ),
 }
 
 
@@ -192,19 +257,142 @@ def answer_observation_ambiguity(
             return band(clearance / linear, 3.0, 1.5)
         return 0.2
     if question_id == "q13":
-        speed = float(behavior.get("predicted_speed_mps", 0.0))
-        return band(speed, 0.08, 0.08)
+        visual = snapshot.get("camera_person_detection") or {}
+        confidence = float(visual.get("confidence", 0.0))
+        return band(confidence, 0.28, 0.18)
     return 0.25
 
 
-@functools.lru_cache(maxsize=16)
-def dashboard_font(pixel_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def live_model_answer_key(question_id: str, snapshot: dict[str, Any]) -> str:
+    """Return the evidence-backed model answer state for a live snapshot."""
+    linear = float(snapshot.get("linear_x", 0.0))
+    angular = float(snapshot.get("angular_z", 0.0))
+    clearance = float(snapshot.get("front_clearance", math.inf))
+    obstacle = snapshot.get("obstacle")
+    behavior = snapshot.get("behavior_decision") or {}
+    decision = str(behavior.get("decision", "PASS")).upper()
+    moving = abs(linear) >= 0.03 or abs(angular) >= 0.05
+
+    if question_id == "q07":
+        has_close_obstacle = obstacle is not None or (
+            math.isfinite(clearance)
+            and clearance <= DASHBOARD_OBSTACLE_DISTANCE_M
+        )
+        if not has_close_obstacle:
+            return "none"
+        bearing = getattr(obstacle, "bearing_rad", None)
+        if bearing is None or abs(float(bearing)) < 0.25:
+            return "center"
+        return "left" if float(bearing) > 0.0 else "right"
+    if question_id == "q14":
+        if math.isfinite(clearance) and clearance < 1.2:
+            return "blocked"
+        if (
+            obstacle is not None
+            or (
+                math.isfinite(clearance)
+                and clearance <= DASHBOARD_OBSTACLE_DISTANCE_M
+            )
+        ):
+            return "narrow"
+        return "clear"
+    if question_id == "q13":
+        # Q3 is camera-gated. Planner occupancy and the old 360-degree
+        # ``nearby_people`` list must never make a person behind / beside the
+        # camera appear in this answer.
+        camera_people = snapshot.get("camera_frustum_people") or ()
+        visual = snapshot.get("camera_person_detection") or {}
+        camera_age_ms = snapshot.get("camera_age_ms")
+        if (
+            not camera_people
+            or not bool(visual.get("visible"))
+            or (
+                isinstance(camera_age_ms, (int, float))
+                and float(camera_age_ms) > 750.0
+            )
+        ):
+            return "none"
+        bbox = visual.get("bbox")
+        frame_size = visual.get("frame_size")
+        matched_people = camera_people
+        if bbox is not None and frame_size is not None:
+            x, _, box_width, _ = (float(item) for item in bbox)
+            frame_width = max(1.0, float(frame_size[0]))
+            detection_x = (x + 0.5 * box_width) / frame_width
+            half_fov = 0.5 * CAMERA_HORIZONTAL_FOV_RAD
+            matched_people = tuple(
+                item
+                for item in camera_people
+                if abs(
+                    detection_x
+                    - (
+                        0.5
+                        - math.tan(float(item[2]))
+                        / (2.0 * math.tan(half_fov))
+                    )
+                )
+                <= 0.10 + 0.5 * box_width / frame_width
+            )
+        if not matched_people:
+            return "none"
+        nearest_distance = float(matched_people[0][0])
+        if nearest_distance >= 3.5 or bool(visual.get("far")):
+            return "far"
+        if not bool(visual.get("on_path")):
+            return "near_clear"
+        return (
+            "on_path_moving"
+            if bool(visual.get("moving"))
+            else "on_path_stationary"
+        )
+    if question_id == "mission_state":
+        mission = snapshot.get("mission_state") or {}
+        state = str(mission.get("state", "WAITING")).upper()
+        if state in {"NAVIGATE_TO_SHELF"}:
+            return "outbound"
+        if state == "PARSE_TASK":
+            area = str(snapshot.get("area", "")).lower()
+            return "align" if "kệ" in area or "shelf" in area else "finish"
+        if state in {"SHELF_APPROACH", "RAISE_LIFT", "ALIGN_PACKAGE"}:
+            return "align"
+        if state in {"GRASP_PACKAGE", "VERIFY_GRASP"}:
+            return "grasp"
+        if state in {"RETURN_TO_DROPOFF"}:
+            return "transport"
+        return "finish"
+    if question_id == "q20":
+        if decision == "WAIT":
+            return "stop"
+        if decision == "REPLAN":
+            return "replan"
+        if not moving:
+            return "stop"
+        if angular >= 0.12:
+            return "left"
+        if angular <= -0.12:
+            return "right"
+        return "straight"
+    raise KeyError(f"question {question_id!r} has no live model answer")
+
+
+@functools.lru_cache(maxsize=32)
+def dashboard_font(
+    pixel_size: int, weight: str = "regular"
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load a Unicode font for Vietnamese dashboard text."""
-    candidates = (
+    regular_candidates = (
         os.environ.get("VJEPA_DASHBOARD_FONT", ""),
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuSans[wdth,wght].ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     )
+    bold_candidates = (
+        os.environ.get("VJEPA_DASHBOARD_FONT_BOLD", ""),
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuSans[wdth,wght].ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    )
+    candidates = bold_candidates if weight == "bold" else regular_candidates
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
             return ImageFont.truetype(candidate, pixel_size)
@@ -213,11 +401,11 @@ def dashboard_font(pixel_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageF
 
 def latent_evidence_profile(question_id: str) -> str:
     """Select which real latent evidence is relevant to the active question."""
-    if question_id in {"q01", "q02", "q03", "q11", "q12"}:
+    if question_id in {"q01", "q02", "q03", "q11", "q12", "mission_state"}:
         return "temporal_motion"
     if question_id in {"q08", "q09", "q10", "q15", "q17", "q20"}:
         return "future_rollout"
-    if question_id in {"q18", "q19"}:
+    if question_id == "q19":
         return "localization_match"
     return "current_observation"
 
@@ -233,6 +421,11 @@ ACTIVE_NAV2_GOAL_STATES = frozenset({
     GoalStatus.STATUS_EXECUTING,
     GoalStatus.STATUS_CANCELING,
 })
+
+
+def gui_wait_ms(next_deadline: float, now: float) -> int:
+    """Poll OpenCV only for the unspent part of the frame budget."""
+    return max(1, int(math.ceil(max(0.0, next_deadline - now) * 1000.0)))
 
 
 @dataclass(frozen=True)
@@ -383,6 +576,218 @@ def project_pose_with_odometry(
     )
 
 
+def people_in_camera_frustum(
+    *,
+    agv_x: float,
+    agv_y: float,
+    agv_yaw: float,
+    entities: tuple[EntityPose, ...],
+) -> tuple[tuple[float, str, float], ...]:
+    """Return workers geometrically inside the forward RGB-camera view.
+
+    The camera is rigidly aligned with the robot's +X axis and uses the 1.22
+    rad horizontal FOV declared in ``warehouse_agv/model.sdf``. The worker's
+    collision radius is included so a partly visible body at an image edge is
+    not discarded.
+    """
+    camera_x = agv_x + math.cos(agv_yaw) * CAMERA_FORWARD_OFFSET_M
+    camera_y = agv_y + math.sin(agv_yaw) * CAMERA_FORWARD_OFFSET_M
+    half_fov = 0.5 * CAMERA_HORIZONTAL_FOV_RAD
+    visible: list[tuple[float, str, float]] = []
+    for entity in entities:
+        if not entity.name.startswith("random_worker_"):
+            continue
+        dx, dy = entity.x - camera_x, entity.y - camera_y
+        distance = math.hypot(dx, dy)
+        if distance <= 0.05 or distance > CAMERA_PERSON_MAX_DISTANCE_M:
+            continue
+        forward = math.cos(agv_yaw) * dx + math.sin(agv_yaw) * dy
+        if forward <= 0.0:
+            continue
+        bearing = wrap_angle(math.atan2(dy, dx) - agv_yaw)
+        body_half_angle = math.asin(min(0.95, 0.23 / distance))
+        if abs(bearing) <= half_fov + body_half_angle:
+            visible.append((distance, entity.name, bearing))
+    return tuple(sorted(visible, key=lambda item: (item[0], item[1])))
+
+
+class CameraPersonDetector:
+    """Detect visible people from the latest RGB frame without world poses.
+
+    OpenCV HOG runs on a latest-frame worker so camera callbacks never queue
+    behind detection. Two consecutive positive frames are required, while a
+    miss clears the visible result immediately. This deliberately favors no
+    false person report when the camera cannot actually see one.
+    """
+
+    def __init__(self) -> None:
+        self.condition = threading.Condition()
+        self.pending: tuple[np.ndarray, float] | None = None
+        self.result: dict[str, Any] = {
+            "visible": False,
+            "confidence": 0.0,
+            "bbox": None,
+            "frame_size": None,
+            "far": False,
+            "on_path": False,
+            "moving": False,
+            "frame_timestamp": 0.0,
+            "source": "camera_hog",
+        }
+        self.closed = False
+        self.positive_streak = 0
+        self.previous_center: tuple[float, float, float] | None = None
+        self.motion_score = 0.0
+        self.revision = 0
+        self.thread = threading.Thread(
+            target=self._run,
+            name="camera-person-detector",
+            daemon=True,
+        )
+        self.thread.start()
+
+    def submit(self, frame_bgr: np.ndarray, timestamp: float) -> None:
+        if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
+            return
+        with self.condition:
+            if self.closed:
+                return
+            # Only the newest camera frame matters. Replacing this slot avoids
+            # a delayed detector reporting someone who has already left view.
+            self.pending = (frame_bgr.copy(), float(timestamp))
+            self.condition.notify()
+
+    def snapshot(self, camera_timestamp: float) -> dict[str, Any]:
+        with self.condition:
+            value = dict(self.result)
+        frame_timestamp = float(value.get("frame_timestamp", 0.0))
+        if (
+            camera_timestamp > 0.0
+            and frame_timestamp > 0.0
+            and camera_timestamp - frame_timestamp > 0.75
+        ):
+            value.update(visible=False, confidence=0.0, bbox=None)
+        return value
+
+    def close(self) -> None:
+        with self.condition:
+            self.closed = True
+            self.pending = None
+            self.condition.notify()
+        self.thread.join(timeout=1.0)
+
+    @staticmethod
+    def _best_detection(
+        hog: cv2.HOGDescriptor, frame_bgr: np.ndarray
+    ) -> tuple[tuple[int, int, int, int] | None, float]:
+        height, width = frame_bgr.shape[:2]
+        scale_up = max(1.0, 540.0 / max(1, height))
+        work = (
+            cv2.resize(
+                frame_bgr,
+                (int(round(width * scale_up)), int(round(height * scale_up))),
+                interpolation=cv2.INTER_LINEAR,
+            )
+            if scale_up > 1.01
+            else frame_bgr
+        )
+        boxes, weights = hog.detectMultiScale(
+            work,
+            hitThreshold=0.0,
+            winStride=(8, 8),
+            padding=(8, 8),
+            scale=1.04,
+            groupThreshold=2.0,
+            useMeanshiftGrouping=False,
+        )
+        candidates: list[tuple[float, tuple[int, int, int, int]]] = []
+        for box, raw_score in zip(boxes, np.asarray(weights).reshape(-1)):
+            x, y, box_width, box_height = (int(item) for item in box)
+            original_box = (
+                int(round(x / scale_up)),
+                int(round(y / scale_up)),
+                int(round(box_width / scale_up)),
+                int(round(box_height / scale_up)),
+            )
+            _, original_y, original_width, original_height = original_box
+            aspect = original_width / max(1, original_height)
+            height_ratio = original_height / max(1, height)
+            bottom_ratio = (original_y + original_height) / max(1, height)
+            score = float(raw_score)
+            if (
+                score >= 0.85
+                and 0.25 <= aspect <= 0.72
+                and height_ratio >= 0.16
+                and bottom_ratio >= 0.48
+            ):
+                candidates.append((score, original_box))
+        if not candidates:
+            return None, 0.0
+        score, box = max(candidates, key=lambda item: item[0])
+        return box, score
+
+    def _run(self) -> None:
+        hog = cv2.HOGDescriptor()
+        hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+        while True:
+            with self.condition:
+                while self.pending is None and not self.closed:
+                    self.condition.wait()
+                if self.closed:
+                    return
+                frame_bgr, timestamp = self.pending
+                self.pending = None
+
+            box, raw_score = self._best_detection(hog, frame_bgr)
+            height, width = frame_bgr.shape[:2]
+            if box is None:
+                self.positive_streak = 0
+                self.previous_center = None
+                self.motion_score = 0.0
+                value = {
+                    "visible": False,
+                    "confidence": 0.0,
+                    "bbox": None,
+                    "frame_size": (width, height),
+                    "far": False,
+                    "on_path": False,
+                    "moving": False,
+                    "frame_timestamp": timestamp,
+                    "source": "camera_hog",
+                }
+            else:
+                x, y, box_width, box_height = box
+                center_x = (x + 0.5 * box_width) / max(1, width)
+                center_y = (y + 0.5 * box_height) / max(1, height)
+                previous = self.previous_center
+                lateral_rate = 0.0
+                if previous is not None:
+                    previous_x, _, previous_timestamp = previous
+                    delta_t = timestamp - previous_timestamp
+                    if 0.05 <= delta_t <= 1.5:
+                        lateral_rate = abs(center_x - previous_x) / delta_t
+                self.previous_center = (center_x, center_y, timestamp)
+                self.motion_score = 0.65 * self.motion_score + 0.35 * lateral_rate
+                self.positive_streak += 1
+                left = x / max(1, width)
+                right = (x + box_width) / max(1, width)
+                value = {
+                    "visible": self.positive_streak >= 2,
+                    "confidence": min(1.0, max(0.0, raw_score / 3.0)),
+                    "bbox": box,
+                    "frame_size": (width, height),
+                    "far": box_height / max(1, height) < 0.30,
+                    "on_path": left <= 0.58 and right >= 0.42,
+                    "moving": self.motion_score >= 0.10,
+                    "frame_timestamp": timestamp,
+                    "source": "camera_hog",
+                }
+            with self.condition:
+                self.revision += 1
+                value["revision"] = self.revision
+                self.result = value
+
+
 class LocalizationDashboardNode(Node):
     """Join V-JEPA output and truth only in an external evaluation process."""
 
@@ -424,6 +829,7 @@ class LocalizationDashboardNode(Node):
         self.debug: dict[str, Any] = {}
         self.camera_bgr: np.ndarray | None = None
         self.camera_timestamp = 0.0
+        self.camera_person_detector = CameraPersonDetector()
         self.query_latent: np.ndarray | None = None
         self.query_latent_trail: deque[np.ndarray] = deque(maxlen=12)
         self.nav_status: dict[str, Any] = {}
@@ -690,9 +1096,12 @@ class LocalizationDashboardNode(Node):
             rgb = image_message_to_rgb(message)
         except ValueError:
             return
+        camera_bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        camera_timestamp = message_timestamp_sec(message)
         with self.lock:
-            self.camera_bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-            self.camera_timestamp = message_timestamp_sec(message)
+            self.camera_bgr = camera_bgr
+            self.camera_timestamp = camera_timestamp
+        self.camera_person_detector.submit(camera_bgr, camera_timestamp)
 
     def _on_latent(self, message: Float32MultiArray) -> None:
         latent = np.asarray(message.data, dtype=np.float32)
@@ -810,6 +1219,9 @@ class LocalizationDashboardNode(Node):
             latent_prediction = dict(self.latent_prediction)
             camera_bgr = None if self.camera_bgr is None else self.camera_bgr.copy()
             camera_timestamp = self.camera_timestamp
+            camera_person_detection = self.camera_person_detector.snapshot(
+                camera_timestamp
+            )
             query_latent = (
                 None if self.query_latent is None else self.query_latent.copy()
             )
@@ -826,7 +1238,8 @@ class LocalizationDashboardNode(Node):
                 now=time.monotonic(),
             )
             snapshot = {
-                "sequence": self.sequence,
+                "sequence": self.sequence
+                + int(camera_person_detection.get("revision", 0)),
                 "current_truth": current,
                 "stream_elapsed_s": (
                     max(0.0, current.timestamp - self.stream_start_timestamp)
@@ -872,6 +1285,7 @@ class LocalizationDashboardNode(Node):
                 "latent_prediction": latent_prediction,
                 "camera_bgr": camera_bgr,
                 "camera_timestamp": camera_timestamp,
+                "camera_person_detection": camera_person_detection,
                 "query_latent": query_latent,
                 "query_latent_trail": query_latent_trail,
                 "source_id": debug.get("source_id"),
@@ -938,7 +1352,20 @@ class LocalizationDashboardNode(Node):
                     people_ahead.append((distance, entity.name))
         snapshot["nearby_people"] = tuple(sorted(nearby_people))
         snapshot["people_ahead"] = tuple(sorted(people_ahead))
+        snapshot["camera_frustum_people"] = (
+            people_in_camera_frustum(
+                agv_x=current.x,
+                agv_y=current.y,
+                agv_yaw=current.yaw,
+                entities=entities,
+            )
+            if current is not None
+            else ()
+        )
         return snapshot
+
+    def close(self) -> None:
+        self.camera_person_detector.close()
 
 
 class LatentProjector:
@@ -1513,37 +1940,10 @@ class QueryConditionedAnswerLatent:
 class AnswerLatentRenderer:
     """Render predicted and candidate answer embeddings for the active query."""
 
-    def __init__(self) -> None:
-        self.displayed_stabilized: np.ndarray | None = None
-        self.stabilized_velocity = np.zeros(2, dtype=np.float32)
-        self.last_animation_time: float | None = None
-
-    def _animate_stabilized(
-        self, target: np.ndarray, report: dict[str, Any]
-    ) -> np.ndarray:
-        now = time.monotonic()
-        if self.displayed_stabilized is None or self.last_animation_time is None:
-            self.displayed_stabilized = target.copy()
-            self.stabilized_velocity *= 0.0
-            self.last_animation_time = now
-            return self.displayed_stabilized.copy()
-        dt = min(0.05, max(1.0 / 240.0, now - self.last_animation_time))
-        self.last_animation_time = now
-        stiffness = float(report.get("display_spring_stiffness", 30.0))
-        damping = float(report.get("display_spring_damping", 11.0))
-        acceleration = (
-            stiffness * (target - self.displayed_stabilized)
-            - damping * self.stabilized_velocity
-        )
-        self.stabilized_velocity += acceleration.astype(np.float32) * dt
-        self.displayed_stabilized += self.stabilized_velocity * dt
-        if (
-            float(np.linalg.norm(target - self.displayed_stabilized)) < 1.0e-4
-            and float(np.linalg.norm(self.stabilized_velocity)) < 1.0e-4
-        ):
-            self.displayed_stabilized = target.copy()
-            self.stabilized_velocity *= 0.0
-        return self.displayed_stabilized.copy()
+    @staticmethod
+    def _stabilized_for_display(target: np.ndarray) -> np.ndarray:
+        """Snap to each stabilized sample, just like the predicted marker."""
+        return target.copy()
 
     def draw(
         self,
@@ -1583,7 +1983,7 @@ class AnswerLatentRenderer:
         stabilized_target = np.asarray(
             report["stabilized_point_2d"], dtype=np.float32
         )
-        stabilized = self._animate_stabilized(stabilized_target, report)
+        stabilized = self._stabilized_for_display(stabilized_target)
         trajectory = np.asarray(report["trajectory_points_2d"], dtype=np.float32)
         lower = np.asarray(report["answer_space_lower_2d"], dtype=np.float32)
         upper = np.asarray(report["answer_space_upper_2d"], dtype=np.float32)
@@ -1626,20 +2026,65 @@ class AnswerLatentRenderer:
             cv2.FONT_HERSHEY_SIMPLEX, 0.38, (45, 48, 54), 1, cv2.LINE_AA,
         )
         cv2.circle(canvas, (x + 345, legend_y - 4), 2, (165, 169, 172), -1, cv2.LINE_AA)
-        cv2.putText(
-            canvas, "ANSWER BANK", (x + 356, legend_y),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (45, 48, 54), 1, cv2.LINE_AA,
-        )
+
 
 
 class PreparedQA:
-    """Rotate prepared warehouse questions and temporally stabilize their answers."""
+    """Rotate a fixed, answerable set of warehouse questions.
+
+    The YAML file remains a pool of twenty questions.  A smaller configured
+    subset is used for the public dashboard so the operator always sees five
+    questions, regardless of the aisle, charging area, or obstacle
+    state.  All twenty questions are still evaluated on every stream update,
+    which keeps the pool available for later selection without making the
+    visible question count depend on scene-gating heuristics.
+    """
 
     def __init__(self, config_path: Path) -> None:
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         self.questions = tuple(config["questions"])
         if not self.questions:
             raise ValueError("live question list is empty")
+        self.question_by_id = {
+            str(spec["id"]): spec for spec in self.questions
+        }
+        configured_ids = config.get("universal_question_ids")
+        if configured_ids is None:
+            configured_ids = [
+                str(spec["id"])
+                for spec in self.questions[: int(config.get("display_count", 10))]
+            ]
+        configured_ids = tuple(dict.fromkeys(str(item) for item in configured_ids))
+        if not configured_ids:
+            raise ValueError("universal question selection is empty")
+        missing = tuple(
+            question_id
+            for question_id in configured_ids
+            if question_id not in self.question_by_id
+        )
+        if missing:
+            raise ValueError(
+                "universal_question_ids contains unknown question id(s): "
+                + ", ".join(missing)
+            )
+        self.universal_question_ids = configured_ids
+        self.universal_questions = tuple(
+            self.question_by_id[question_id] for question_id in configured_ids
+        )
+        if len(self.universal_questions) != 5:
+            raise ValueError(
+                "Warehouse Questions UI requires exactly five questions"
+            )
+        missing_choices = tuple(
+            question_id
+            for question_id in self.universal_question_ids
+            if question_id not in WAREHOUSE_MODEL_ANSWER_CHOICES
+        )
+        if missing_choices:
+            raise ValueError(
+                "selected live question(s) have no model answer choices: "
+                + ", ".join(missing_choices)
+            )
         self.interval_sec = float(config.get("interval_sec", 3.5))
         self.stabilize_frames = max(1, int(config.get("stabilize_frames", 2)))
         self.answer_latent = QueryConditionedAnswerLatent(
@@ -1656,7 +2101,27 @@ class PreparedQA:
         self.active_slot: int | None = None
         self.active_spec: dict[str, Any] | None = None
         self.active_index = 0
-        self.active_count = len(self.questions)
+        self.active_count = len(self.universal_questions)
+        self.pool_count = len(self.questions)
+        # The dashboard must be useful before the first DDS frame arrives.
+        # Keep these answers separate from ``stable`` so normal temporal
+        # stabilization semantics remain unchanged after streaming begins.
+        self.default_answers = {
+            str(spec["id"]): self._answer(
+                str(spec["id"]),
+                {
+                    "area": "khu vực chưa xác định",
+                    "linear_x": 0.0,
+                    "angular_z": 0.0,
+                    "front_clearance": math.inf,
+                    "obstacle": None,
+                    "behavior_decision": {"decision": "PASS", "occupancy": []},
+                    "people_ahead": (),
+                    "nearby_people": (),
+                },
+            )[1]
+            for spec in self.questions
+        }
 
     @staticmethod
     def _scope_is_relevant(scope: str, snapshot: dict[str, Any]) -> bool:
@@ -1678,11 +2143,9 @@ class PreparedQA:
             for item in behavior.get("occupancy", [])
             if isinstance(item, dict)
         )
-        person_id = str(behavior.get("person_id", "none"))
         has_people = bool(
-            snapshot.get("people_ahead")
-            or snapshot.get("nearby_people")
-            or person_id not in {"", "none", "None"}
+            snapshot.get("camera_frustum_people")
+            and (snapshot.get("camera_person_detection") or {}).get("visible")
         )
         in_service_area = "sạc" in area or "đóng gói" in area
         in_aisle = "kệ" in area or "hành lang" in area or "lối đi" in area
@@ -1832,9 +2295,14 @@ class PreparedQA:
                 "V-JEPA z(t+1), z(t+2), z(t+3) are active; awaiting actual latents.",
             )
         if question_id == "mission_state":
-            mission = snapshot.get("mission_state") or {}
-            state = str(mission.get("state", "WAITING"))
-            return state, f"Mission state is {state}."
+            key = live_model_answer_key("mission_state", snapshot)
+            return key, {
+                "outbound": "Robot đang đi từ dock tới kệ.",
+                "align": "Robot đang căn chỉnh trước hộp.",
+                "grasp": "Robot đang gắp và kiểm tra hộp.",
+                "transport": "Robot đang chở hộp tới điểm giao.",
+                "finish": "Robot đang hoàn tất hoặc chờ nhiệm vụ mới.",
+            }[key]
         return "unsupported", "No prepared answer for this question."
 
     @staticmethod
@@ -1978,12 +2446,14 @@ class PreparedQA:
                 else "Robot đang giữ gần giữa lối.",
             ),
             "q13": (
-                "people" if people else "none",
-                "Có, người phía trước đang di chuyển."
-                if people and predicted_person_speed > 0.08
-                else "Có, người phía trước đang đứng yên."
-                if people
-                else "Không có người ở gần phía trước.",
+                live_model_answer_key("q13", snapshot),
+                {
+                    "none": "Không phát hiện người ở phía trước.",
+                    "far": "Có người ở phía xa.",
+                    "near_clear": "Có người ở gần nhưng không chắn đường.",
+                    "on_path_stationary": "Có người đứng yên phía trước robot.",
+                    "on_path_moving": "Có người đang di chuyển phía trước robot.",
+                }[live_model_answer_key("q13", snapshot)],
             ),
             "q14": (
                 "blocked" if clearance < 1.2 else "narrow" if has_front_obstacle else "clear",
@@ -2015,10 +2485,6 @@ class PreparedQA:
                 else "Khung cảnh sẽ xoay dần sang phải khi robot cua trái."
                 if angular > 0.12
                 else "Lối đi sẽ tiếp tục mở ra phía trước.",
-            ),
-            "q18": (
-                str(snapshot.get("area", "unknown")),
-                f"Mốc hiện tại là {snapshot.get('area', 'khu vực chưa xác định')}.",
             ),
             "q19": (
                 "ambiguous" if "kệ" in str(snapshot.get("area", "")) else "tracked",
@@ -2061,16 +2527,20 @@ class PreparedQA:
             elapsed = (time.monotonic() if now is None else now) - self.started
         slot = int(max(0.0, elapsed) / self.interval_sec)
         if self.active_spec is None or self.active_slot != slot:
-            eligible = self._eligible_questions(self.latest_snapshot)
-            self.active_index = slot % len(eligible)
-            self.active_count = len(eligible)
-            self.active_spec = eligible[self.active_index]
+            # Public rotation is deliberately independent of scene scope: the
+            # selected five questions are valid in every warehouse location.
+            self.active_index = slot % len(self.universal_questions)
+            self.active_count = len(self.universal_questions)
+            self.active_spec = self.universal_questions[self.active_index]
             self.active_slot = slot
         spec = self.active_spec
         index = self.active_index
         question_id = str(spec["id"])
-        instant_answer = self.instant.get(question_id, "Collecting live context...")
-        stable_answer = self.stable.get(question_id, "Collecting live context...")
+        fallback_answer = self.default_answers.get(
+            question_id, "Chưa có đủ quan sát để trả lời câu này."
+        )
+        instant_answer = self.instant.get(question_id, fallback_answer)
+        stable_answer = self.stable.get(question_id, fallback_answer)
         answer_latent = None
         if self.latest_snapshot is not None and question_id in self.stable:
             answer_latent = self.answer_latent.infer(
@@ -2084,15 +2554,89 @@ class PreparedQA:
                     question_id, self.latest_snapshot
                 ),
             )
+        display_questions = self.display_questions(
+            active_id=question_id,
+            active_index=index,
+        )
+        active_card = display_questions[index]
         return {
             "index": index,
             "count": self.active_count,
             "id": question_id,
             "question": str(spec["text"]),
-            "instant": self.instant.get(question_id, "Collecting live context..."),
+            # Both public windows consume these exact two strings. ``stable``
+            # remains the longer internal answer used by the latent adapter.
+            "display_question": str(active_card["question"]),
+            "display_answer": str(active_card["model_selected_answer"]),
+            "display_answer_key": str(active_card["model_selected_key"]),
+            "instant": instant_answer,
             "stable": stable_answer,
             "answer_latent": answer_latent,
+            "pool_count": self.pool_count,
+            "display_questions": display_questions,
         }
+
+    def display_questions(
+        self,
+        *,
+        active_id: str | None = None,
+        active_index: int | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Return five live model question/answer cards rendered by OpenCV.
+
+        The model answer is derived from the same current sensor/control
+        snapshot used by the visible dashboard and changes continuously.
+        """
+        cards: list[dict[str, Any]] = []
+        snapshot = self.latest_snapshot or {
+            "linear_x": 0.0,
+            "angular_z": 0.0,
+            "front_clearance": math.inf,
+            "obstacle": None,
+            "behavior_decision": {"decision": "PASS"},
+        }
+        for index, spec in enumerate(self.universal_questions):
+            question_id = str(spec["id"])
+            fallback_answer = self.default_answers.get(
+                question_id, "Chưa có đủ quan sát để trả lời câu này."
+            )
+            choices = tuple(
+                {"key": key, "label": label}
+                for key, label in WAREHOUSE_MODEL_ANSWER_CHOICES[question_id]
+            )
+            selected_key = live_model_answer_key(question_id, snapshot)
+            selected_answer = next(
+                (
+                    str(choice["label"])
+                    for choice in choices
+                    if str(choice["key"]) == selected_key
+                ),
+                selected_key,
+            )
+            cards.append(
+                {
+                    "index": index,
+                    "count": len(self.universal_questions),
+                    "pool_count": self.pool_count,
+                    "id": question_id,
+                    "question": str(spec["text"]),
+                    "instant": self.instant.get(question_id, fallback_answer),
+                    "stable": self.stable.get(question_id, fallback_answer),
+                    "choices": choices,
+                    "model_selected_key": selected_key,
+                    "model_selected_answer": selected_answer,
+                    "stream_elapsed_s": float(
+                        snapshot.get("stream_elapsed_s", 0.0)
+                    ),
+                    "area": str(snapshot.get("area", "đang chờ dữ liệu")),
+                    "is_active": (
+                        question_id == active_id
+                        if active_id is not None
+                        else index == active_index
+                    ),
+                }
+            )
+        return tuple(cards)
 
 
 class DashboardRenderer:
@@ -2221,7 +2765,7 @@ class DashboardRenderer:
         cv2.rectangle(canvas, (0, 0), (width, 82), (43, 37, 32), -1)
         self._line(
             canvas,
-            f"Query [{qa['index'] + 1}/{qa['count']}]: {qa['question']}",
+            f"Query [{qa['index'] + 1}/{qa['count']}]: {qa['display_question']}",
             24,
             32,
             color=(245, 245, 245),
@@ -2230,7 +2774,7 @@ class DashboardRenderer:
         )
         self._line(
             canvas,
-            f"Answer: {qa['stable']}",
+            f"Answer: {qa['display_answer']}",
             24,
             64,
             color=(120, 235, 255),
@@ -2301,6 +2845,144 @@ class DashboardRenderer:
         )
 
         return canvas
+
+    def render_questions(self, qa: dict[str, Any]) -> np.ndarray:
+        """Render five live questions and the model-selected answers."""
+        cards = tuple(qa.get("display_questions") or ())[:5]
+        canvas = np.full(
+            (QUESTIONS_HEIGHT, QUESTIONS_WIDTH, 3),
+            (248, 248, 248),
+            dtype=np.uint8,
+        )
+        text_items: list[
+            tuple[str, int, int, int, tuple[int, int, int], bool]
+        ] = []
+
+        def text(
+            value: str,
+            x: int,
+            y: int,
+            size: int,
+            color: tuple[int, int, int],
+            bold: bool = False,
+        ) -> None:
+            text_items.append((str(value), x, y, size, color, bold))
+
+        def wrap(
+            value: str, max_width: int, size: int, bold: bool = False
+        ) -> tuple[str, ...]:
+            font = dashboard_font(size, "bold" if bold else "regular")
+            words = str(value).split()
+            if not words:
+                return ("",)
+            lines: list[str] = []
+            current = words[0]
+            for word in words[1:]:
+                candidate = f"{current} {word}"
+                width = (
+                    font.getlength(candidate)
+                    if hasattr(font, "getlength")
+                    else font.getbbox(candidate)[2]
+                )
+                if width > max_width:
+                    lines.append(current)
+                    current = word
+                else:
+                    current = candidate
+            lines.append(current)
+            return tuple(lines)
+
+        domain_labels = {
+            "q07": "Nhận biết không gian",
+            "q14": "Khả năng đi qua",
+            "q13": "Tương tác người - robot",
+            "mission_state": "Bộ nhớ trạng thái nhiệm vụ",
+            "q20": "Lập kế hoạch hành động",
+        }
+        card_x, card_width, card_height, card_gap = 10, 472, 132, 7
+        for index, card in enumerate(cards):
+            x = card_x
+            y = 5 + index * (card_height + card_gap)
+            question_id = str(card["id"])
+            selected_key = str(card["model_selected_key"])
+            cv2.rectangle(
+                canvas,
+                (x, y),
+                (x + card_width, y + card_height),
+                (255, 255, 255),
+                -1,
+            )
+            cv2.rectangle(
+                canvas,
+                (x, y),
+                (x + card_width, y + card_height),
+                (216, 219, 224),
+                1,
+            )
+            cv2.rectangle(canvas, (x, y), (x + 4, y + card_height), (118, 189, 226), -1)
+            text(f"Q{index + 1}", x + 14, y + 8, 12, (34, 39, 46), True)
+            text(
+                domain_labels.get(question_id, "World model"),
+                x + 48,
+                y + 10,
+                9,
+                (111, 118, 128),
+            )
+            for line_index, line in enumerate(
+                wrap(str(card["question"]), card_width - 28, 11, True)[:2]
+            ):
+                text(
+                    line,
+                    x + 14,
+                    y + 31 + line_index * 15,
+                    11,
+                    (28, 33, 40),
+                    True,
+                )
+
+            choices = tuple(card.get("choices") or ())
+            selected_label = str(
+                card.get("model_selected_answer", card.get("stable", selected_key))
+            )
+            answer_bounds = (x + 14, y + 75, x + card_width - 14, y + 119)
+            cv2.rectangle(
+                canvas,
+                answer_bounds[:2],
+                answer_bounds[2:],
+                (250, 241, 226),
+                -1,
+            )
+            cv2.rectangle(
+                canvas,
+                answer_bounds[:2],
+                answer_bounds[2:],
+                (214, 139, 61),
+                1,
+            )
+            for line_index, line in enumerate(
+                wrap(selected_label, card_width - 56, 11, True)[:2]
+            ):
+                text(
+                    line,
+                    x + 28,
+                    y + 84 + line_index * 14,
+                    11,
+                    (31, 75, 107),
+                    True,
+                )
+
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+        pil_image = PILImage.fromarray(rgb)
+        draw = ImageDraw.Draw(pil_image)
+        for value, x, y, size, color, bold in text_items:
+            draw.text(
+                (x, y),
+                value,
+                font=dashboard_font(size, "bold" if bold else "regular"),
+                fill=color,
+                anchor="lt",
+            )
+        return cv2.cvtColor(np.asarray(pil_image), cv2.COLOR_RGB2BGR)
 
     def render_map(self, snapshot: dict[str, Any]) -> np.ndarray:
         """Render the bare map with Truth GPS and planning overlaid on it."""
@@ -2373,9 +3055,25 @@ def serializable_snapshot(
     if qa is not None:
         value["prepared_qa"] = {
             "index": qa["index"],
-            "question": qa["question"],
-            "instant": qa["instant"],
-            "stabilized": qa["stable"],
+            "question": qa["display_question"],
+            "model_answer": qa["display_answer"],
+            "pool_count": int(qa.get("pool_count", 20)),
+            "display_count": int(qa.get("count", 0)),
+            "questions": [
+                {
+                    "index": int(card["index"]),
+                    "id": str(card["id"]),
+                    "question": str(card["question"]),
+                    "choices": [
+                        str(choice["label"])
+                        for choice in card.get("choices", ())
+                    ],
+                    "model_selected_key": str(card["model_selected_key"]),
+                    "model_selected_answer": str(card["model_selected_answer"]),
+                    "active": bool(card.get("is_active", False)),
+                }
+                for card in qa.get("display_questions", ())
+            ],
         }
     return value
 
@@ -2442,13 +3140,23 @@ def main() -> None:
     last_question_index = -1
     last_map_render = -math.inf
     cached_map: np.ndarray | None = None
+    last_questions_render = -math.inf
+    cached_questions: np.ndarray | None = None
     held_keyboard = X11KeyboardState() if not args.headless else None
-    delay_ms = max(1, int(round(1000.0 / args.refresh_hz)))
+    frame_period = 1.0 / args.refresh_hz
+    next_frame_deadline = time.monotonic() + frame_period
     if not args.headless:
         cv2.namedWindow(TELEMETRY_WINDOW, cv2.WINDOW_NORMAL)
         cv2.namedWindow(MAP_WINDOW, cv2.WINDOW_NORMAL)
+        # GUI_NORMAL removes Qt's image toolbar and RGB/coordinate status bar;
+        # the window now shows only the five question cards.
+        cv2.namedWindow(
+            QUESTIONS_WINDOW,
+            cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL,
+        )
         cv2.resizeWindow(TELEMETRY_WINDOW, STREAMING_WIDTH, STREAMING_HEIGHT)
         cv2.resizeWindow(MAP_WINDOW, renderer.map_width, renderer.map_height)
+        cv2.resizeWindow(QUESTIONS_WINDOW, QUESTIONS_WIDTH, QUESTIONS_HEIGHT)
         print(
             "[KEYBOARD] Hold W/S to move and A/D simultaneously to steer; "
             "A or D alone rotates in place. SPACE stops; ESC closes. "
@@ -2460,16 +3168,20 @@ def main() -> None:
             # Process one blocking callback and then drain the ready queue.
             # Camera QoS depth=1 means this always converges to the newest
             # frame instead of replaying an accumulated video backlog.
-            rclpy.spin_once(node, timeout_sec=min(0.01, 1.0 / args.refresh_hz))
+            callback_deadline = time.monotonic() + min(0.006, 0.25 * frame_period)
+            rclpy.spin_once(node, timeout_sec=min(0.003, frame_period))
             for _ in range(31):
+                if time.monotonic() >= callback_deadline:
+                    break
                 rclpy.spin_once(node, timeout_sec=0.0)
             snapshot = node.snapshot()
             qa_engine.update(snapshot)
             qa = qa_engine.active()
             if int(qa["index"]) != last_question_index:
                 print(
-                    f"\n[VL-JEPA QUERY {qa['index'] + 1}/{qa['count']}] {qa['question']}\n"
-                    f"[STABILIZED ANSWER] {qa['stable']}",
+                    f"\n[VL-JEPA QUERY {qa['index'] + 1}/{qa['count']}] "
+                    f"{qa['display_question']}\n"
+                    f"[ANSWER] {qa['display_answer']}",
                     flush=True,
                 )
                 last_question_index = int(qa["index"])
@@ -2485,6 +3197,16 @@ def main() -> None:
             else:
                 cv2.imshow(TELEMETRY_WINDOW, renderer.render_streaming(snapshot, qa))
                 now = time.monotonic()
+                # This window is text-only and its selected answers are
+                # stabilized. Redrawing PIL fonts at camera FPS wasted most of
+                # the GUI frame budget, so refresh it independently at 5 Hz.
+                if (
+                    cached_questions is None
+                    or now - last_questions_render >= 0.2
+                ):
+                    cached_questions = renderer.render_questions(qa)
+                    last_questions_render = now
+                cv2.imshow(QUESTIONS_WINDOW, cached_questions)
                 if (
                     cached_map is None
                     or now - last_map_render >= 1.0 / args.map_refresh_hz
@@ -2492,7 +3214,14 @@ def main() -> None:
                     cached_map = renderer.render_map(snapshot)
                     last_map_render = now
                 cv2.imshow(MAP_WINDOW, cached_map)
-                key = cv2.waitKeyEx(delay_ms)
+                now = time.monotonic()
+                if next_frame_deadline < now:
+                    # Rendering overran this frame. Drop the missed display
+                    # slot immediately instead of adding another full-period
+                    # wait and showing an increasingly old camera image.
+                    next_frame_deadline = now
+                key = cv2.waitKeyEx(gui_wait_ms(next_frame_deadline, now))
+                next_frame_deadline += frame_period
                 if held_keyboard and held_keyboard.available:
                     if not node.update_held_keyboard(held_keyboard.pressed()):
                         break
@@ -2503,6 +3232,7 @@ def main() -> None:
                 if (
                     cv2.getWindowProperty(TELEMETRY_WINDOW, cv2.WND_PROP_VISIBLE) < 1
                     or cv2.getWindowProperty(MAP_WINDOW, cv2.WND_PROP_VISIBLE) < 1
+                    or cv2.getWindowProperty(QUESTIONS_WINDOW, cv2.WND_PROP_VISIBLE) < 1
                 ):
                     break
             if args.duration and time.monotonic() - started >= args.duration:
@@ -2511,6 +3241,7 @@ def main() -> None:
         pass
     finally:
         node.stop_keyboard()
+        node.close()
         if held_keyboard is not None:
             held_keyboard.close()
         if not args.headless:

@@ -227,18 +227,28 @@ if ! gz topic -l 2>/dev/null | grep -Fx "/warehouse_agv/camera" >/dev/null; then
   exit 1
 fi
 
-# A pick command is a new scenario run even when Gazebo stays open. Reset the
-# people controller's route, dwell and proximity-activation state so repeated
-# missions show live crossings instead of inheriting the previous run.
+# Workers patrol continuously across missions.  Resetting their physical poses
+# here used to queue a Gazebo service request while cmd_vel was already live;
+# the late request then snapped workers backward and made them appear frozen.
 PEOPLE_RESET_TOPIC="/warehouse/random_people/reset"
-if gz topic -l 2>/dev/null | grep -Fx "$PEOPLE_RESET_TOPIC" >/dev/null; then
-  for _ in $(seq 1 4); do
-    gz topic -t "$PEOPLE_RESET_TOPIC" -m gz.msgs.Boolean -p 'data: true'
-    sleep 0.03
+PEOPLE_MISSION_TOPIC="/warehouse/random_people/new_mission"
+if gz topic -l 2>/dev/null | grep -Fx "$PEOPLE_MISSION_TOPIC" >/dev/null; then
+  # A single short-lived gz publisher can exit before Transport discovery has
+  # delivered its sample. Send a small burst with one shared unique ID;
+  # random_people.py treats every copy as the same idempotent mission.
+  PEOPLE_MISSION_ID="$(date +%s%N)"
+  for _MISSION_TRIGGER_COPY in 1 2 3 4 5; do
+    gz topic -t "$PEOPLE_MISSION_TOPIC" -m gz.msgs.Int64 \
+      -p "data: $PEOPLE_MISSION_ID"
+    sleep 0.10
   done
-  echo "${GREEN}[WORKERS] New mission: patrols and crossing triggers reset.${RESET}"
+  echo "${GREEN}[WORKERS] Crossing direction armed for this mission; poses retained.${RESET}"
+fi
+if [[ "${WAREHOUSE_RESET_PEOPLE_ON_MISSION:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]; then
+  gz topic -t "$PEOPLE_RESET_TOPIC" -m gz.msgs.Boolean -p 'data: true'
+  echo "${YELLOW}[WORKERS] Physical patrol reset requested by environment override.${RESET}"
 else
-  echo "${YELLOW}[WORKERS] Reset topic unavailable; restart ./run_demo.sh to load the updated worker controller.${RESET}"
+  echo "${GREEN}[WORKERS] Continuous patrol retained; no mission-time pose reset.${RESET}"
 fi
 
 # Fast path for the normal interactive workflow: run_demo.sh already started

@@ -21,10 +21,19 @@ from geometry_msgs.msg import PoseStamped
 from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import NavigateThroughPoses, NavigateToPose
 from nav2_msgs.msg import SpeedLimit
+from nav_msgs.msg import OccupancyGrid
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    QoSProfile,
+    ReliabilityPolicy,
+)
 from rclpy.signals import SignalHandlerOptions
+from rclpy.time import Time
 from std_msgs.msg import String
+from tf2_ros import Buffer, TransformListener
 
 from latent_route import (
     LatentRoutePlanner,
@@ -58,6 +67,13 @@ YELLOW = "\033[33m" if TTY else ""
 BOLD = "\033[1m" if TTY else ""
 RESET = "\033[0m" if TTY else ""
 
+MAP_QOS = QoSProfile(
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1,
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+)
+
 
 def print_route_card(
     storage: str,
@@ -76,15 +92,25 @@ def print_route_card(
     print(f"{CYAN}{BOLD}╭─ NAV2 SEMANTIC ROUTE ───────────────────────────────────╮{RESET}")
     print(f"{CYAN}│{RESET} Destination : {BOLD}{route['label']} ({storage}){RESET}")
     print(f"{CYAN}│{RESET} RGB boxes    : {', '.join(available)}")
+    route_kind = (
+        "direct staging + latent shelf approach"
+        if route.get("direct_staging", False)
+        else "latent clips"
+    )
     print(
-        f"{CYAN}│{RESET} Route        : latent clips "
+        f"{CYAN}│{RESET} Route        : {route_kind} "
         f"{latent_segment.start_index}→{latent_segment.end_index} "
         f"({len(prune_hard_corner_checkpoints(latent_segment.poses[1:]))} checkpoints)"
     )
     print(f"{CYAN}│{RESET} Latent map   : {latent_segment.map_dir}")
     print(f"{CYAN}│{RESET} Planner      : NavFn A* + rounded-corner MPPI")
     print(f"{CYAN}│{RESET} Localization : {localization}")
-    print(f"{CYAN}│{RESET} Latent use   : recorded outbound corridor + V-JEPA dashboard")
+    latent_use = (
+        "semantic aisle staging + recorded shelf clips"
+        if route.get("direct_staging", False)
+        else "recorded outbound corridor + V-JEPA dashboard"
+    )
+    print(f"{CYAN}│{RESET} Latent use   : {latent_use}")
     print(
         f"{CYAN}│{RESET} Safety       : predicted WAIT/PASS/REPLAN + local LiDAR"
     )
@@ -119,17 +145,22 @@ def prune_passed_checkpoints(
 ) -> list[PoseStamped]:
     """Never send a checkpoint behind the robot again after an action retry."""
     pending = list(poses)
-    if current_xy is None:
+    if current_xy is None or len(pending) <= 1:
         return pending
     current_x, current_y = current_xy
-    while len(pending) > 1:
-        first = pending[0].pose.position
-        following = pending[1].pose.position
+    # Find the nearest segment anywhere in the remaining polyline. Checking
+    # only its first segment fails after a long action: the robot is correctly
+    # near a later segment, but is far from the old prefix, so the old code
+    # retained dock/A goals and made a retry turn backward.
+    best_segment = -1
+    best_cross_track = math.inf
+    for index in range(len(pending) - 1):
+        first = pending[index].pose.position
+        following = pending[index + 1].pose.position
         dx = float(following.x - first.x)
         dy = float(following.y - first.y)
         length_sq = dx * dx + dy * dy
         if length_sq <= 1e-6:
-            pending.pop(0)
             continue
         offset_x = current_x - float(first.x)
         offset_y = current_y - float(first.y)
@@ -138,13 +169,14 @@ def prune_passed_checkpoints(
         closest_x = float(first.x) + closest_projection * dx
         closest_y = float(first.y) + closest_projection * dy
         cross_track = math.hypot(current_x - closest_x, current_y - closest_y)
-        distance_to_first = math.hypot(offset_x, offset_y)
-        reached = distance_to_first <= 0.45
-        passed = projection >= 0.15 and cross_track <= 1.0
-        if not (reached or passed):
-            break
-        pending.pop(0)
-    return pending
+        if cross_track < best_cross_track:
+            best_cross_track = cross_track
+            best_segment = index
+    if best_segment < 0 or best_cross_track > 1.0:
+        return pending
+    # The next checkpoint is always forward along the selected segment. Keep
+    # at least the final goal even when the robot is already near its endpoint.
+    return pending[min(best_segment + 1, len(pending) - 1):]
 
 
 def available_objects(tasks: dict, storage: str) -> dict[str, tuple[str, dict]]:
@@ -153,6 +185,41 @@ def available_objects(tasks: dict, storage: str) -> dict[str, tuple[str, dict]]:
         for name, item in tasks["objects"].items()
         if item["location"] == storage
     }
+
+
+def staging_route_segment(
+    route: dict, latent_planner: LatentRoutePlanner
+) -> LatentRouteSegment:
+    """Build a direct staging corridor without replaying prior shelf visits.
+
+    The dense V-JEPA map is one long mapping traversal: dock, every A slot,
+    every B slot, then every C slot. A raw prefix ending at B or C therefore
+    contains inspection detours that are not part of a pickup route. The
+    configured aisle waypoints bypass those detours while the recorded end
+    index remains the anchor for the target cabinet's latent shelf approach.
+    """
+    staging_pose = list(route["waypoints"][-1]["pose"])
+    recorded_segment = latent_planner.segment_to(staging_pose)
+    if not route.get("direct_staging", False):
+        return recorded_segment
+
+    waypoint_poses: list[list[float]] = [list(latent_planner.poses[0])]
+    for waypoint in route["waypoints"]:
+        values = list(map(float, waypoint["pose"]))
+        if len(values) != 3:
+            raise ValueError(
+                f"waypoint {waypoint.get('name', '<unnamed>')} must be [x,y,yaw]"
+            )
+        x, y, yaw = values
+        waypoint_poses.append([x, y, 0.0, yaw])
+
+    return LatentRouteSegment(
+        poses=np.asarray(waypoint_poses, dtype=np.float64),
+        start_index=recorded_segment.start_index,
+        end_index=recorded_segment.end_index,
+        target_error_m=recorded_segment.target_error_m,
+        map_dir=recorded_segment.map_dir,
+    )
 
 
 class CabinetRouteNavigator(Node):
@@ -166,6 +233,18 @@ class CabinetRouteNavigator(Node):
             self, NavigateThroughPoses, "/navigate_through_poses"
         )
         self.lifecycle = self.create_client(GetState, "/bt_navigator/get_state")
+        self.map_lifecycle = self.create_client(GetState, "/map_server/get_state")
+        self.map_received = False
+        self.create_subscription(
+            OccupancyGrid,
+            "/map",
+            lambda _message: setattr(self, "map_received", True),
+            MAP_QOS,
+        )
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(
+            self.tf_buffer, self, spin_thread=False
+        )
         self.preview = self.create_publisher(PoseStamped, "/semantic_goal", 1)
         self.mission_state = self.create_publisher(
             String, "/warehouse/mission_state", 10
@@ -267,23 +346,49 @@ class CabinetRouteNavigator(Node):
                 self.shelf_state_published = True
 
     def wait_until_active(self, timeout: float) -> None:
-        """Wait for Nav2 lifecycle activation, not just action discovery."""
+        """Require a complete Nav2 stack: BT, map publication, and robot TF."""
         deadline = time.monotonic() + timeout
         last_report = 0.0
         if not self.lifecycle.wait_for_service(timeout_sec=timeout):
             raise RuntimeError("không tìm thấy lifecycle service của bt_navigator")
+        if not self.map_lifecycle.wait_for_service(timeout_sec=timeout):
+            raise RuntimeError("không tìm thấy lifecycle service của map_server")
         while time.monotonic() < deadline:
-            future = self.lifecycle.call_async(GetState.Request())
-            rclpy.spin_until_future_complete(self, future, timeout_sec=1.0)
-            response = future.result() if future.done() else None
-            if response is not None and response.current_state.label == "active":
+            bt_future = self.lifecycle.call_async(GetState.Request())
+            map_future = self.map_lifecycle.call_async(GetState.Request())
+            wait_deadline = min(deadline, time.monotonic() + 1.0)
+            while (
+                time.monotonic() < wait_deadline
+                and (not bt_future.done() or not map_future.done())
+            ):
+                rclpy.spin_once(self, timeout_sec=0.05)
+            bt_response = bt_future.result() if bt_future.done() else None
+            map_response = map_future.result() if map_future.done() else None
+            bt_active = (
+                bt_response is not None
+                and bt_response.current_state.label == "active"
+            )
+            map_active = (
+                map_response is not None
+                and map_response.current_state.label == "active"
+            )
+            tf_ready = self.tf_buffer.can_transform("map", "base_link", Time())
+            if bt_active and map_active and self.map_received and tf_ready:
                 return
             now = time.monotonic()
             if now - last_report >= 1.0:
-                print("[ROUTE_WAIT] đang chờ Nav2 active và TF odom sẵn sàng")
+                print(
+                    "[ROUTE_WAIT] "
+                    f"BT={'ok' if bt_active else 'wait'} | "
+                    f"map_server={'ok' if map_active else 'wait'} | "
+                    f"/map={'ok' if self.map_received else 'wait'} | "
+                    f"TF={'ok' if tf_ready else 'wait'}"
+                )
                 last_report = now
             time.sleep(0.25)
-        raise RuntimeError("Nav2 chưa active sau thời gian chờ")
+        raise RuntimeError(
+            "Nav2 chưa đủ readiness (BT + map_server + /map + map->base_link TF)"
+        )
 
     @staticmethod
     def make_pose(values: list[float]) -> PoseStamped:
@@ -348,6 +453,10 @@ class CabinetRouteNavigator(Node):
         if not self.client.wait_for_server(timeout_sec=wait):
             raise RuntimeError("không tìm thấy Nav2 /navigate_to_pose")
         for attempt in range(1, retries + 2):
+            # A lifecycle node or transient-local map can disappear after an
+            # earlier action failure. Never turn that infrastructure outage
+            # into three identical navigation retries.
+            self.wait_until_active(wait)
             self.replan_requested = False
             pose = self.make_pose(values)
             self.preview.publish(pose)
@@ -438,6 +547,7 @@ class CabinetRouteNavigator(Node):
         poses = [self.make_pose(list(pose[[0, 1, 3]])) for pose in values]
         pending_poses = poses
         for attempt in range(1, retries + 2):
+            self.wait_until_active(wait)
             self.replan_requested = False
             self.goal_initial_distance = 0.0
             self.last_distance_remaining = math.inf
@@ -491,18 +601,13 @@ class CabinetRouteNavigator(Node):
                     return
             self.finish_progress()
             if attempt <= retries:
-                remaining_count = max(
-                    1,
-                    min(
-                        len(pending_poses),
-                        self.poses_remaining or len(pending_poses),
-                    ),
-                )
-                pending_poses = pending_poses[-remaining_count:]
                 pending_poses = prune_passed_checkpoints(
                     pending_poses, self.last_current_xy
                 )
-                print(f"  {YELLOW}↻ RETRY{RESET} quay lại corridor latent {name}")
+                print(
+                    f"  {YELLOW}↻ RETRY{RESET} tiếp tục {len(pending_poses)} "
+                    f"checkpoint phía trước của {name}"
+                )
                 deadline = time.monotonic() + 2.0
                 while time.monotonic() < deadline:
                     rclpy.spin_once(self, timeout_sec=0.1)
@@ -584,8 +689,13 @@ def run_loaded_return(
         f"\n{CYAN}{BOLD}↩ DIRECT A* DELIVERY{RESET} "
         f"slot {slot} → Packing Station"
     )
+    # Reach P along the eastbound aisle without asking MPPI to perform its
+    # slow final in-place turn. The release phase owns one short, feedback-
+    # controlled rotation toward the drop bay immediately before extending.
+    travel_pose = list(packing_pose)
+    travel_pose[2] = 0.0
     navigator.navigate(
-        f"{slot} → Packing Station", packing_pose, wait, retries
+        f"{slot} → Packing Station", travel_pose, wait, retries
     )
 
 
@@ -641,7 +751,7 @@ def main() -> None:
     try:
         latent_planner = LatentRoutePlanner()
         staging_pose = list(route["waypoints"][-1]["pose"])
-        staging_segment = latent_planner.segment_to(staging_pose)
+        staging_segment = staging_route_segment(route, latent_planner)
     except (FileNotFoundError, ValueError, RuntimeError) as error:
         parser.error(str(error))
     outbound_segment = staging_segment
@@ -649,7 +759,7 @@ def main() -> None:
         str, dict, str, LatentRouteSegment, list[float]
     ] | None = None
     # The one-command mission already knows its requested color. Resolve it
-    # before motion and keep the staging + Shelf A approach in one action so
+    # before motion and keep the staging + shelf approach in one action so
     # MPPI sees (and rounds) the shared second 90-degree turn. Interactive
     # missions retain the original stop-and-select behavior.
     if args.color is not None and not args.route_only and not args.resume_delivery:

@@ -109,8 +109,8 @@
   },
   "configuration": {
     "video": {
-      "clip_duration_sec": 1.0,
-      "num_sampled_frames": 4,
+      "clip_duration_sec": 1.5,
+      "num_sampled_frames": 6,
       "sample_rate_fps": 4.0,
       "sampling": "uniform",
       "stride_sec": 0.5,

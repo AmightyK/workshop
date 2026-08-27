@@ -109,11 +109,12 @@ records go to `$WAREHOUSE_LOG_DIR/behavior_decisions.jsonl`.
 
 ## Gazebo scenarios
 
-- Human #1 (`random_worker_4`) begins stationary in the east-west route at
-  `(7, -10)`. Only observed AGV proximity inside 3.2 m activates its northbound
-  exit. The planner therefore sees the static occupancy, waits on the retained
-  path, and resumes as measured motion clears the corridor.
-- Human #2 (`random_worker_5`) continuously walks a 5.8 m open-floor
+- Human #1 (`random_worker_4`) waits outside the east-west route and crosses
+  through `(7.5, -10)` when the AGV comes within 3.2 m. It consumes one
+  traversal per mission, remains at the safe opposite endpoint, then crosses
+  in the reverse direction on the next mission. Mission triggers never reset
+  or teleport its pose. This proximity scenario is enabled by default.
+- Human #2 (`random_worker_5`) continuously walks a 7.8 m open-floor
   left-right patrol. It has no endpoint dwell or mission-time trigger; the
   planner obtains safe windows from its measured direction and velocity.
 - The other three workers retain their previous randomized behavior.

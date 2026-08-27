@@ -292,6 +292,12 @@ class PredictiveBehaviorPlanner:
                     "collision authority"
                 )
             elif (
+                scenario not in {
+                    "human_1_static_until_close",
+                    "human_1_continuous_crossing",
+                    "human_2_continuous_crossing",
+                }
+                and
                 wait_duration >= config.replan_after_s
                 and timestamp - last_replan >= config.replan_cooldown_s
             ):

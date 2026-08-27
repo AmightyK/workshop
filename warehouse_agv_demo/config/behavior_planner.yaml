@@ -10,8 +10,8 @@ behavior_planner:
   # Use the full prediction horizon: brake as soon as the continuous crossing
   # worker is predicted to intersect the route, leaving visible clearance.
   required_pass_window_s: 4.0
-  # Human #1 starts moving as the AGV approaches. This delay is deliberately
-  # longer than that normal encounter, avoiding an unnecessary route change.
+  # Continuous patrols normally clear before this delay, avoiding an
+  # unnecessary route change while retaining a bounded blocked-path fallback.
   replan_after_s: 10.0
   replan_cooldown_s: 15.0
   stationary_speed_mps: 0.08

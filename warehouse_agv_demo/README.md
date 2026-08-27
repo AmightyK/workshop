@@ -137,6 +137,9 @@ Watch the local costmap / LiDAR in RViz and the live dashboard comment. Worker
 4 crosses the east-west leg near `(7, -10)` and worker 5 crosses the northbound
 leg near `(-2, -5)`. Because they keep patrolling, the exact stop or detour can
 vary from run to run; the route itself always intersects both patrol lines.
+Worker 4's intentional proximity scenario is enabled by default: it waits
+until the AGV comes within 3.2 m and then crosses. Use
+`WAREHOUSE_WORKER4_MODE=continuous` only for motion diagnostics.
 
 For the VL-JEPA-style streaming presentation, choose one or two fixed routes:
 

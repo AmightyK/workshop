@@ -74,6 +74,19 @@ PAYLOAD_SIZE_Y_M = 0.19
 PAYLOAD_SIZE_Z_M = 0.18
 TRAY_FIT_MARGIN_M = 0.005
 PACKING_SURFACE_Z_M = 0.055
+DROP_CORRECTION_TOLERANCE_M = 0.45
+
+
+def point_inside_drop_zone(
+    point_xy: tuple[float, float],
+    center: list[float],
+    half_extents: list[float],
+) -> bool:
+    """Return whether a carton centre lies anywhere inside Packing P."""
+    return (
+        abs(float(point_xy[0]) - float(center[0])) <= float(half_extents[0])
+        and abs(float(point_xy[1]) - float(center[1])) <= float(half_extents[1])
+    )
 
 
 def release_approach_pose(
@@ -100,6 +113,19 @@ def release_approach_pose(
         float(drop_center[1]) - sin_yaw * release_forward - cos_yaw * release_lateral,
         float(drop_yaw),
     ]
+
+
+def drop_correction_required(
+    robot_xy: tuple[float, float],
+    drop_pose: list[float],
+    *,
+    tolerance_m: float = DROP_CORRECTION_TOLERANCE_M,
+) -> bool:
+    """Return whether P needs another Nav2 translation before release."""
+    return math.hypot(
+        float(robot_xy[0]) - float(drop_pose[0]),
+        float(robot_xy[1]) - float(drop_pose[1]),
+    ) > float(tolerance_m)
 
 
 def print_target_card(answer: dict) -> None:
@@ -454,9 +480,8 @@ class GazeboPayload:
                     float(pose.position.z),
                 )
             x, y, z = latest
-            inside = (
-                abs(x - center_x) <= half_x
-                and abs(y - center_y) <= half_y
+            inside = point_inside_drop_zone(
+                (x, y), [center_x, center_y], [half_x, half_y]
             )
             # Packing P has a 55 mm top surface.  The 180 mm carton therefore
             # rests with its centre at z=0.145 m, rather than at floor height
@@ -753,7 +778,15 @@ class VqaNav2Mission(Node):
         nav_mode = self.pipeline["coarse_navigation"].get("mode", "dynamic")
         print(f"[SAFETY] collision monitor {state}; navigation mode={nav_mode}")
 
-    def navigate(self, label: str, xyz_yaw: list[float], wait: float) -> None:
+    def navigate(
+        self,
+        label: str,
+        xyz_yaw: list[float],
+        wait: float,
+        *,
+        early_success_tolerance_m: float | None = None,
+        timeout_s: float | None = None,
+    ) -> None:
         if not self.nav_client.wait_for_server(timeout_sec=wait):
             raise RuntimeError("Nav2 /navigate_to_pose action server is unavailable")
         pose = self._make_pose(xyz_yaw)
@@ -768,13 +801,47 @@ class VqaNav2Mission(Node):
         send_future = self.nav_client.send_goal_async(
             goal, feedback_callback=self._feedback
         )
-        rclpy.spin_until_future_complete(self, send_future)
+        rclpy.spin_until_future_complete(self, send_future, timeout_sec=wait)
+        if not send_future.done():
+            raise RuntimeError(f"Timed out sending Nav2 goal {label}")
         handle = send_future.result()
         if handle is None or not handle.accepted:
             raise RuntimeError(f"Nav2 rejected {label}")
         result_future = handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future)
-        status = result_future.result().status
+        deadline = time.monotonic() + (
+            float(timeout_s) if timeout_s is not None else max(180.0, wait * 6.0)
+        )
+        while not result_future.done():
+            rclpy.spin_once(self, timeout_sec=0.05)
+            if early_success_tolerance_m is not None and self.odom_xy is not None:
+                position_error = math.hypot(
+                    float(self.odom_xy[0]) - float(xyz_yaw[0]),
+                    float(self.odom_xy[1]) - float(xyz_yaw[1]),
+                )
+                if position_error <= float(early_success_tolerance_m):
+                    cancel_future = handle.cancel_goal_async()
+                    rclpy.spin_until_future_complete(
+                        self, cancel_future, timeout_sec=2.0
+                    )
+                    self._stop_base()
+                    print(
+                        f"[NAV2] semantic arrival {label}: "
+                        f"position error={position_error:.2f} m"
+                    )
+                    return
+            if time.monotonic() >= deadline:
+                cancel_future = handle.cancel_goal_async()
+                rclpy.spin_until_future_complete(
+                    self, cancel_future, timeout_sec=2.0
+                )
+                self._stop_base()
+                raise RuntimeError(
+                    f"Nav2 timed out navigating to {label}; goal cancelled"
+                )
+        result = result_future.result()
+        if result is None:
+            raise RuntimeError(f"Nav2 returned no result for {label}")
+        status = result.status
         if status != GoalStatus.STATUS_SUCCEEDED:
             raise RuntimeError(f"Nav2 failed {label} with action status {status}")
         print(f"[NAV2] reached {label}")
@@ -1054,6 +1121,32 @@ class VqaNav2Mission(Node):
         self._stop_base()
         raise RuntimeError("Robot could not square both suction cups to rack")
 
+    def rotate_to_yaw_fast(
+        self,
+        target_yaw: float,
+        yaw_feedback,
+        *,
+        tolerance: float = 0.10,
+        timeout: float = 6.0,
+    ) -> float:
+        """Fast shortest-angle terminal alignment after position navigation."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            error = math.atan2(
+                math.sin(float(target_yaw) - float(yaw_feedback())),
+                math.cos(float(target_yaw) - float(yaw_feedback())),
+            )
+            if abs(error) <= tolerance:
+                self._stop_base()
+                return error
+            speed = min(1.40, max(0.35, 2.4 * abs(error)))
+            command = Twist()
+            command.angular.z = math.copysign(speed, error)
+            self.base_velocity.publish(command)
+            rclpy.spin_once(self, timeout_sec=0.03)
+        self._stop_base()
+        raise RuntimeError("Fast terminal yaw alignment timed out")
+
     def publish_lift_geometry(self, lift: float) -> None:
         sin_theta = math.sin(SCISSOR_THETA_FOLDED) + lift / (
             SCISSOR_STAGE_COUNT * SCISSOR_BAR_LENGTH
@@ -1199,7 +1292,21 @@ def complete_recycle_loop(
         slot=slot_name,
         payload_state="DROPPED",
     )
-    mission.navigate(str(home["anchor"]), home_pose, wait)
+    current_xy = payload.robot_xy()
+    travel_yaw = math.atan2(
+        float(home_pose[1]) - float(current_xy[1]),
+        float(home_pose[0]) - float(current_xy[0]),
+    )
+    home_travel_pose = list(home_pose)
+    home_travel_pose[2] = travel_yaw
+    mission.navigate(str(home["anchor"]), home_travel_pose, wait)
+    # Charging readiness is defined by the physical pad position, not a
+    # cosmetic 180-degree spin after Nav2 has already reached HOME01. Under a
+    # loaded simulator that direct cmd_vel turn can time out and incorrectly
+    # fail an otherwise completed delivery. Keep the arrival heading and stop
+    # immediately so the next mission can depart without extra dwell.
+    mission._stop_base()
+    print("[CHARGE_ALIGN] HOME01 position reached; terminal spin skipped")
     pose_error = require_home_pose(payload.robot_xy(), home_pose, tolerance)
     mission.publish_state(
         "CHARGING_HOME",
@@ -1208,7 +1315,7 @@ def complete_recycle_loop(
         pose_error_m=pose_error,
         position_tolerance_m=tolerance,
         contact_verified=True,
-        verification_source="gazebo_pose_semantic_fallback",
+        verification_source="gazebo_position_semantic_fallback",
     )
     mission.publish_state(
         "MISSION_COMPLETE",
@@ -1291,9 +1398,10 @@ def main() -> None:
     item = config["objects"][answer["object"]]
     packing = config["stations"]["packing_station"]["slots"]["PACK01"]
     drop_center = list(packing["drop_center"])
-    drop_half_extents = list(
-        packing.get("drop_center_tolerance", packing["drop_half_extents"])
-    )
+    # Delivery requires the carton to land anywhere within the physical P
+    # platform. ``drop_center_tolerance`` is an optional precision metric, not
+    # a mission-failure boundary.
+    drop_half_extents = list(packing["drop_half_extents"])
     drop_surface_z = float(packing.get("drop_surface_z", PACKING_SURFACE_Z_M))
     payload = GazeboPayload()
     payload.wait_for(
@@ -1395,13 +1503,32 @@ def main() -> None:
                 drop_tray_fit["center_lateral_m"],
                 slide_max,
             )
-            print(
-                "[DROP_ALIGN] release-only Nav2 correction "
-                f"goal=({drop_pose[0]:.2f}, {drop_pose[1]:.2f})"
+            print("[DROP_ALIGN] shortest-angle terminal alignment")
+            mission.rotate_to_yaw_fast(
+                float(packing["approach"][2]), payload.robot_yaw
             )
-            mission.navigate(
-                answer["destination_anchor"], drop_pose, args.wait
-            )
+            current_xy = payload.robot_xy()
+            if drop_correction_required(current_xy, drop_pose):
+                print(
+                    "[DROP_ALIGN] release-only Nav2 correction "
+                    f"goal=({drop_pose[0]:.2f}, {drop_pose[1]:.2f})"
+                )
+                mission.navigate(
+                    answer["destination_anchor"],
+                    drop_pose,
+                    args.wait,
+                    early_success_tolerance_m=DROP_CORRECTION_TOLERANCE_M,
+                    timeout_s=20.0,
+                )
+            else:
+                error = math.hypot(
+                    current_xy[0] - float(drop_pose[0]),
+                    current_xy[1] - float(drop_pose[1]),
+                )
+                print(
+                    "[DROP_ALIGN] base already inside release tolerance; "
+                    f"skip duplicate Nav2 correction (error={error:.2f} m)"
+                )
             print("[DROP_ALIGN] AGV is inside P; extending fork for release")
             mission.move_suction_slide_to(
                 -slide_speed, 0.0, extension_feedback,

@@ -1,292 +1,267 @@
-# Goal Specification - BFMC Warehouse Scenario with V-JEPA Integration
+Hãy sửa trực tiếp **Warehouse Questions UI hiện tại** dựa trên implementation đang có.
 
-## Role
+Ảnh/UI hiện tại đang hiển thị:
 
-You are a senior Robotics Engineer specializing in:
+**Warehouse Questions - 10 of 20**
 
-* Autonomous Navigation
-* Dynamic Obstacle Avoidance
-* World Models (V-JEPA / V-JEPA2)
-* Behavior Planning
-* Model Predictive Decision Making
-* ROS2-based Autonomous Systems
+và bên dưới render **10 question cards cùng lúc theo layout 2 cột**.
 
-Your task is to modify and improve the existing BFMC autonomous vehicle stack.
+Tôi muốn GIỮ cách hoạt động **nhiều câu hỏi xuất hiện cùng lúc**, nhưng thay đổi như sau.
 
----
+## 1. Từ 10 cards xuống CHÍNH XÁC 5 cards
 
-## Current System
+Không làm kiểu:
 
-The current vehicle already supports:
+Q1 → trả lời → Q2 → Q3...
 
-* Lane following
-* Sign detection
-* Object detection
-* Stable navigation
-* Latent extraction using V-JEPA
-* Basic stop-and-go obstacle handling
+Tôi muốn:
 
-The current performance must be preserved.
+**Q1 + Q2 + Q3 + Q4 + Q5 HIỂN THỊ CÙNG LÚC trên cùng màn hình.**
 
-Do not degrade:
+Tức là thay UI hiện tại:
 
-* Tracking stability
-* Lane keeping
-* Existing perception performance
-* Current inference speed
+**10 cards cùng lúc**
 
----
+thành:
 
-# Mission Scenario
+**5 cards cùng lúc.**
 
-The vehicle starts from the warehouse start point.
+Header cũng phải đổi tương ứng, không còn:
 
-Target mission:
+`Warehouse Questions - 10 of 20`
 
-1. Navigate to Shelf A.
-2. Detect a BLUE package.
-3. Pick up the BLUE package.
-4. Return to the drop-off zone.
-5. Place the package successfully.
+hay:
 
----
+`10 câu hỏi luôn sẵn sàng`
 
-# Dynamic Human Interaction
+Hãy đổi thành nội dung phù hợp với bộ **5 câu hỏi cuối cùng**.
 
-## Human #1 (Static Blocking)
+## 2. ĐỪNG chỉ lấy 5 câu đầu tiên trong 20 câu hiện tại
 
-Scenario:
+Đây là yêu cầu quan trọng nhất.
 
-* Human stands still.
-* Human only begins moving when the vehicle gets close.
+Trước khi quyết định 5 câu nào sẽ xuất hiện, hãy kiểm tra **TOÀN BỘ trajectory thực tế của robot từ Start đến Finish**.
 
-Required behavior:
+Hãy thực sự đi theo timeline/trajectory và xác định:
 
-* Detect human.
-* Predict occupancy of path.
-* Wait safely.
-* Resume motion after path becomes free.
+* pose của robot;
+* orientation/heading;
+* robot đang đứng yên hay di chuyển;
+* tốc độ;
+* robot đang đi thẳng hay đang turning;
+* đoạn tiếp theo robot sẽ rẽ trái/phải hay đi thẳng;
+* obstacle/landmark thực tế;
+* LiDAR/camera information nếu có;
+* waypoint/checkpoint tương ứng.
 
-Success criteria:
+Sau khi hiểu toàn bộ route mới thiết kế **5 câu hỏi tốt nhất**.
 
-* No collision.
-* No aggressive steering.
-* No unnecessary rerouting.
+Không bắt buộc sử dụng Q01–Q05 hiện tại.
 
----
+Nếu câu hiện tại sai, mơ hồ hoặc không có đủ dữ liệu để chứng minh đáp án thì **XÓA và viết câu mới**.
 
-## Human #2 (Dynamic Crossing)
+## 3. Kiểm tra logic của từng câu theo trajectory
 
-Scenario:
+Hiện tại tôi nghi ngờ một số câu hỏi/đáp án không đúng với trạng thái thực tế của robot.
 
-* Human continuously walks left-right across the lane.
+Ví dụ:
 
-Required behavior:
+Q1 có thể đang tương ứng với một trạng thái robot cụ thể, nhưng Q2 lại kết luận:
 
-Instead of only stopping:
+`Robot đi thẳng.`
 
-1. Track trajectory history.
-2. Estimate velocity.
-3. Predict future occupancy.
-4. Evaluate if safe crossing exists.
-5. Decide:
+Trong khi trajectory thực tế tại context/frame tương ứng chưa chắc robot đang đi thẳng.
 
-   Decision A:
+Không được suy luận kiểu này.
 
-   * Stop and wait
+Với TỪNG câu trong 5 câu cuối cùng, hãy xác minh:
 
-   Decision B:
+`question`
+→ `source frame / timestamp / waypoint`
+→ `robot pose`
+→ `orientation`
+→ `velocity`
+→ `trajectory trước đó`
+→ `trajectory tiếp theo`
+→ `sensor/environment evidence`
+→ `ground truth`
 
-   * Overtake / pass safely
+Chỉ khi evidence thực sự chứng minh được đáp án thì mới sử dụng câu hỏi đó.
 
-Decision must be based on:
+## 4. 5 câu phải được lấy từ các thời điểm hợp lý trên MỘT full route
 
-* Predicted collision probability
-* Time-to-collision
-* Predicted free-space window
+Hãy xem toàn bộ route trước rồi chọn 5 thời điểm có ý nghĩa để đặt câu hỏi.
 
-The planner must explicitly output:
+Không cần chia khoảng cách chính xác bằng nhau, nhưng nên đại diện hợp lý cho hành trình:
 
-* WAIT
-* PASS
-* REPLAN
+`START ── Q1 ───── Q2 ─── Q3 ───── Q4 ─── Q5 ── FINISH`
 
-and the reason for the decision.
+Q1–Q5 phải theo đúng thứ tự thời gian của trajectory.
 
----
+Không được lấy frame ngẫu nhiên rồi ghép thành 5 câu.
 
-# V-JEPA Integration Requirements
+## 5. Viết lại câu hỏi nếu cần
 
-Use V-JEPA not only as a feature extractor.
+Ưu tiên câu hỏi có ground truth rõ ràng.
 
-The system must demonstrate:
+Ví dụ có thể hỏi về:
 
-## Environment Understanding
+* Robot hiện đang đứng yên hay di chuyển?
+* Robot đang đi thẳng hay turning?
+* Robot sắp thực hiện maneuver nào?
+* Landmark/obstacle nào thực sự xuất hiện trong observation?
+* Robot đang tiến gần hay rời xa một landmark?
+* Hướng chuyển động hiện tại là gì?
+* Không gian phía trước có đủ để robot tiếp tục hay robot đang giảm tốc?
 
-Extract latent embeddings during the mission.
+Nhưng đây chỉ là ví dụ.
 
-Store:
+**Không cố sử dụng một dạng câu hỏi nếu dữ liệu thực tế không hỗ trợ nó.**
 
-* Raw frame
-* Latent vector
-* Timestamp
-* Vehicle pose
+Nếu một câu hỏi khác phù hợp với trajectory hơn thì hãy tự tạo câu hỏi khác.
 
-for:
+## 6. Đáp án phải chính xác hơn
 
-* Normal driving
-* Human #1 encounter
-* Human #2 encounter
-* Shelf approach
-* Pick-up operation
-* Return path
+Hiện tại có các đáp án dạng:
 
----
+`Robot đi thẳng.`
 
-## Predictive Capability Demonstration
+`Tốc độ đang giữ tương đối đều.`
 
-Implement latent prediction experiments.
+`Đi tiếp bình thường.`
 
-For every critical scene:
+`Di thẳng và giữ tốc độ hiện tại.`
 
-Input:
+Không được giữ những đáp án này chỉ vì chúng đã có trong config.
 
-Current latent z_t
+Hãy verify lại bằng dữ liệu thực tế.
 
-Predict:
+Nếu trajectory cho thấy robot chuẩn bị rẽ thì đáp án không được nói "đi thẳng".
 
-z_t+1
-z_t+2
-z_t+3
+Nếu velocity đang thay đổi đáng kể thì không được nói "giữ tốc độ".
 
-Compare:
+Nếu obstacle phía trước không đủ bằng chứng thì không được tự khẳng định có obstacle.
 
-Predicted latent
-vs
-Actual latent
+**Ground truth phải đến từ dữ liệu, không phải từ wording cũ.**
 
-Metrics:
+## 7. Không show thẳng "ĐÁP ÁN" như UI hiện tại
 
-* L1 latent error
-* Cosine similarity
-* Prediction drift
+UI trong ảnh hiện tại đang render:
 
-Generate plots and logs.
+`ĐÁP ÁN:`
+`Robot đang đứng yên.`
 
-The goal is to demonstrate that V-JEPA captures future scene evolution and environmental dynamics. V-JEPA2 specifically supports latent-space prediction and planning through future latent rollout.
+ngay trên card.
 
----
+Cách này làm mất ý nghĩa của question UI.
 
-## Behavior-Level Prediction Demo
+Hãy chuyển mỗi card thành dạng interactive question.
 
-Create examples showing:
+Ví dụ:
 
-Case 1:
-Human leaves path
+**Q01**
 
-Expected prediction:
-Path becomes free
+Robot đang đứng yên hay đang di chuyển?
 
-Case 2:
-Human continues crossing
+○ Đứng yên
+○ Di chuyển chậm
+○ Di chuyển nhanh
 
-Expected prediction:
-Path remains occupied
+Người dùng chọn một đáp án.
 
-Case 3:
-Vehicle can safely pass
+Làm tương tự cho **cả 5 cards đang hiển thị cùng lúc**.
 
-Expected prediction:
-Collision-free future occupancy
+Sau đó có một nút:
 
-Generate visualizations showing:
+**Submit Answers**
 
-* Current frame
-* Future latent prediction
-* Planner decision
+Sau submit mới reveal:
 
----
+* Correct / Incorrect
+* Correct answer
+* Score tổng, ví dụ `4 / 5`
 
-# Pick-and-Place Stage
+## 8. REDESIGN UI — UI hiện tại quá thô
 
-At Shelf A:
+Không chỉ đổi text/config.
 
-1. Detect BLUE package.
-2. Align vehicle.
-3. Raise lifting mechanism.
-4. Grasp package.
-5. Verify successful grasp.
+Hãy redesign trực tiếp OpenCV question panel hiện tại.
 
-Verification:
+UI hiện tại có các vấn đề:
 
-* Detection confidence
-* Position consistency
-* Gripper state
+* cards quá giống bảng debug;
+* màu nền nâu/xám nặng;
+* hierarchy yếu;
+* khoảng cách text chưa tốt;
+* một số text bị chen/chồng;
+* label `ĐÁP ÁN` gây rối;
+* header chiếm diện tích nhưng không cung cấp nhiều thông tin;
+* question number nhỏ và khó scan;
+* card chưa có selected/hover/correct/incorrect state rõ ràng.
 
-If grasp fails:
+Hãy làm UI theo phong cách:
 
-* Retry alignment
-* Retry grasp
+**Modern Robotics / AI Research Dashboard**
 
-Maximum retries configurable.
+Ưu tiên clean, dark, professional.
 
----
+5 cards phải được bố trí đẹp trong không gian hiện tại.
 
-# Navigation Accuracy Improvement
+ layout khác nếu hợp lý hơn.
 
-Observed issue:
+Không bắt buộc giữ layout hiện tại nếu có phương án đẹp hơn.
 
-Second 90-degree turn near Shelf A overshoots.
+Mỗi card nên có:
 
-Required investigation:
+* Q number rõ ràng;
+* question text nổi bật;
+* answer choices;
+* selected state;
+* đủ padding;
+* alignment chính xác;
+* text wrapping chuẩn;
+* không overlap;
+* consistent spacing;
+* subtle border;
+* hover/active feedback nếu OpenCV UI hiện tại hỗ trợ.
 
-1. Path tracking error.
-2. Steering latency.
-3. Curvature planning.
-4. PID tuning.
-5. Pure Pursuit lookahead.
-6. Stanley controller parameters.
-7. Corner apex selection.
+## 9. Không được chỉ sửa bằng cảm tính — chạy FULL ROUTE
 
-Provide:
+Sau khi implement xong:
 
-* Root-cause analysis
-* Proposed fix
-* Expected improvement
-* Validation procedure
+**Hãy chạy simulation từ Start đến Finish.**
 
-Priority:
+Quan sát toàn bộ trajectory.
 
-Eliminate overshoot while preserving overall stability.
+Sau đó kiểm tra lại từng Q1–Q5 dựa trên route thực tế.
 
----
+Tạo một bảng kiểm tra nội bộ:
 
-# Deliverables
+| Question | Frame/Waypoint | Robot State | Evidence | Ground Truth |
+| -------- | -------------- | ----------- | -------- | ------------ |
+| Q1       | ...            | ...         | ...      | ...          |
+| Q2       | ...            | ...         | ...      | ...          |
+| Q3       | ...            | ...         | ...      | ...          |
+| Q4       | ...            | ...         | ...      | ...          |
+| Q5       | ...            | ...         | ...      | ...          |
 
-Provide:
+Nếu bất kỳ câu nào không chứng minh được ground truth từ dữ liệu thực tế, **thay câu hỏi đó**.
 
-1. Architecture diagram
-2. ROS2 node modifications
-3. State machine updates
-4. Planner changes
-5. V-JEPA integration design
-6. Latent logging pipeline
-7. Evaluation metrics
-8. Test scenarios
-9. Failure cases
-10. Implementation roadmap
+## 10. Acceptance criteria
 
----
+Task chỉ được coi là hoàn thành khi:
 
-# Acceptance Criteria
+* Có **chính xác 5 câu hỏi**.
+* **Cả 5 câu hiển thị cùng lúc**, giống concept UI hiện tại nhưng chỉ còn 5.
+* Mỗi câu có answer choices để người dùng chọn.
+* Không show ground truth trước Submit.
+* Có Submit Answers.
+* Có score/result sau Submit.
+* Q1–Q5 theo đúng thứ tự của một full trajectory.
+* Tất cả ground truth đã được verify bằng dữ liệu thực tế.
+* Không còn câu hỏi mâu thuẫn với robot pose/movement/trajectory.
+* Text không overlap.
+* UI được redesign đẹp và chuyên nghiệp hơn đáng kể so với UI hiện tại.
+* Đã chạy full route Start → Finish để kiểm chứng.
 
-Mission is successful only if:
-
-* Vehicle reaches Shelf A.
-* BLUE package is correctly picked.
-* Vehicle returns to drop zone.
-* No collision with either human.
-* Dynamic decision making is demonstrated.
-* V-JEPA latent prediction is logged and evaluated.
-* Tracking performance is not worse than current baseline.
-* Second 90° corner overshoot is significantly reduced.
+**Đừng chỉ sửa số `10` thành `5`. Đừng chỉ lấy Q01–Q05 hiện tại. Đừng chỉ redesign UI. Phải kiểm tra lại toàn bộ trajectory, chọn lại 5 câu hỏi hợp lý và xác minh lại từng ground-truth answer trước khi hoàn thành.**

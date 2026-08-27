@@ -14,6 +14,7 @@ trajectory_tracking:
 routes:
   storage_A:
     label: "tủ A"
+    direct_staging: true
     waypoints:
       - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
       - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
@@ -21,18 +22,22 @@ routes:
       - {name: cabinet_A_staging, pose: [-1.90, -2.3, 1.5708]}
   storage_B:
     label: "tủ B"
+    # The recorded mapping traversal inspects every slot in A before its first
+    # visit to B. Use this semantic aisle corridor for staging so a B mission
+    # does not replay that A inspection loop; the final B shelf approach still
+    # comes from the recorded latent map.
+    direct_staging: true
     waypoints:
       - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
       - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
       - {name: central_south, pose: [-1.45, -10.0, 1.5708]}
-      - {name: cabinet_A_B_bypass, pose: [-1.90, -0.2, 1.5708]}
       - {name: cabinet_B_staging, pose: [-1.90, 0.8, 1.5708]}
   storage_C:
     label: "tủ C"
+    # Likewise, skip the recorded A/B inspection loops on the way to C.
+    direct_staging: true
     waypoints:
       - {name: dock_exit, pose: [10.8, -10.0, 3.14159]}
       - {name: east_cross_aisle, pose: [5.5, -10.0, 3.14159]}
       - {name: central_south, pose: [-1.45, -10.0, 1.5708]}
-      - {name: cabinet_A_B_bypass, pose: [-1.90, -0.2, 1.5708]}
-      - {name: cabinet_B_C_bypass, pose: [-2.5, 3.5, 1.5708]}
       - {name: cabinet_C_staging, pose: [-2.5, 3.8, 3.14159]}

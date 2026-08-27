@@ -43,6 +43,11 @@ except ImportError:
         relative_to_ego,
     )
 
+try:
+    from .random_people import worker_in_forward_camera_view
+except ImportError:
+    from random_people import worker_in_forward_camera_view
+
 
 WORKER_NAMES = tuple(f"random_worker_{index}" for index in range(1, 6))
 POSE_TIMEOUT_S = 0.50
@@ -53,6 +58,24 @@ KNOWN_WORKER_CROSSINGS = {
     "random_worker_4": Pose2D(7.0, -10.0),
     "random_worker_5": Pose2D(-1.5, -4.2),
 }
+# Scripted stops must be visually explainable in the public camera. Human #2
+# is safe outside the image because its own controller yields before entering
+# an AGV-owned crossing; prediction becomes AGV control authority only after
+# the worker enters the forward RGB field of view.
+CAMERA_VISIBLE_SCRIPTED_WORKERS = frozenset({
+    "random_worker_4",
+    "random_worker_5",
+})
+
+
+def stale_worker_names(
+    timestamps: dict[str, float], now: float, timeout_s: float = POSE_TIMEOUT_S
+) -> list[str]:
+    """Return missing/stale tracks that require a fail-safe AGV stop."""
+    return sorted(
+        name for name, timestamp in timestamps.items()
+        if now - timestamp > timeout_s
+    )
 
 
 def yaw_from_pose(message: Pose) -> float:
@@ -238,6 +261,25 @@ class PersonSafetyMonitor(Node):
             ego = self.agv_track.latest_pose
             ego_vx, ego_vy = self.agv_track.velocity()
             ego_speed = math.hypot(ego_vx, ego_vy)
+            stale_workers = stale_worker_names(self.worker_timestamps, now)
+            if stale_workers:
+                self.latest_candidate_reports = {}
+                return {
+                    "decision": Decision.WAIT.value,
+                    "reason": (
+                        "worker pose stream is stale; fail-safe stop: "
+                        + ", ".join(stale_workers)
+                    ),
+                    "person_id": stale_workers[0],
+                    "scenario": "sensor_timeout",
+                    "timestamp": now,
+                    "collision_probability": 1.0,
+                    "time_to_collision_s": 0.0,
+                    "predicted_free_space_window_s": 0.0,
+                    "predicted_speed_mps": 0.0,
+                    "wait_duration_s": 0.0,
+                    "occupancy": [],
+                }
             candidates = []
             for name, track in self.worker_tracks.items():
                 if not track.samples or now - self.worker_timestamps[name] > POSE_TIMEOUT_S:
@@ -250,12 +292,47 @@ class PersonSafetyMonitor(Node):
                     track=track,
                     timestamp=now,
                 )
+                camera_visible = worker_in_forward_camera_view(
+                    (ego.x, ego.y),
+                    ego.yaw,
+                    (track.latest_pose.x, track.latest_pose.y),
+                )
                 geometric_stop = crossing_worker_requires_stop(
                     name,
                     ego,
                     track.latest_pose,
                     stopping=self.stopping,
                 )
+                # Both scripted encounters must be visually explainable.
+                # Suppress predictive / known-crossing WAIT while the worker
+                # is outside the RGB FOV; the immediate physical envelope
+                # remains authoritative as the final collision backstop.
+                if name in CAMERA_VISIBLE_SCRIPTED_WORKERS and not camera_visible:
+                    immediate_stop = worker_requires_stop(
+                        ego, track.latest_pose, stopping=self.stopping
+                    )
+                    geometric_stop = immediate_stop
+                    if not immediate_stop and report.decision is not Decision.PASS:
+                        # Leaving the camera is the terminal clearance signal
+                        # for a scripted crossing. Clear the old WAIT state so
+                        # the confirmation timer cannot restart forever at an
+                        # endpoint that is already out of view.
+                        self.planner.wait_started.pop(name, None)
+                        self.planner.clear_started.pop(name, None)
+                        report = replace(
+                            report,
+                            decision=Decision.PASS,
+                            reason=(
+                                "scripted worker cleared the forward camera; "
+                                "resume while emergency distance remains active"
+                            ),
+                            collision_probability=0.0,
+                            time_to_collision_s=None,
+                            predicted_free_space_window_s=(
+                                self.planner.config.prediction_horizon_s
+                            ),
+                            wait_duration_s=0.0,
+                        )
                 if geometric_stop:
                     wait_started = self.planner.wait_started.setdefault(name, now)
                     self.planner.clear_started.pop(name, None)

@@ -10,18 +10,23 @@ import numpy as np
 from scripts.localization_dashboard import (
     AnswerLatentRenderer,
     DashboardRenderer,
+    EntityPose,
     LocalizationDashboardNode,
     PoseSample,
     PreparedQA,
     QueryConditionedAnswerLatent,
     SemanticTextEncoder,
     STREAMING_HEIGHT,
+    QUESTIONS_HEIGHT,
+    QUESTIONS_WIDTH,
     answer_candidates,
     answer_observation_ambiguity,
     differential_keyboard_command,
     goal_status_array_has_active_goal,
     latent_evidence_profile,
+    live_model_answer_key,
     plan_for_display,
+    people_in_camera_frustum,
     project_pose_with_odometry,
 )
 
@@ -177,19 +182,24 @@ def test_query_answers_use_predictive_planner_and_real_latent_rollout_contract()
     assert decision.startswith("WAIT for random_worker_5")
     assert "risk=0.81" in occupancy and "TTC=1.25s" in occupancy
     assert "z(t+1), z(t+2), z(t+3)" in latent and "0.940" in latent
-    assert state == "Mission state is CHARGING_HOME."
+    assert state == "Robot đang hoàn tất hoặc chờ nhiệm vụ mới."
 
 
 def test_each_question_selects_relevant_latent_evidence() -> None:
     assert latent_evidence_profile("q01") == "temporal_motion"
     assert latent_evidence_profile("q08") == "future_rollout"
     assert latent_evidence_profile("q17") == "future_rollout"
-    assert latent_evidence_profile("q18") == "localization_match"
+    assert latent_evidence_profile("mission_state") == "temporal_motion"
     assert latent_evidence_profile("q13") == "current_observation"
 
 
 def test_each_question_has_real_candidate_competition() -> None:
-    counts = [len(answer_candidates(f"q{index:02d}")) for index in range(1, 21)]
+    question_ids = tuple(f"q{index:02d}" for index in range(1, 18)) + (
+        "mission_state",
+        "q19",
+        "q20",
+    )
+    counts = [len(answer_candidates(question_id)) for question_id in question_ids]
     assert min(counts) >= 40
     assert sum(counts) >= 800
 
@@ -215,6 +225,14 @@ def test_stream_qa_loads_twenty_prepared_questions() -> None:
     assert qa.questions[-1]["id"] == "q20"
     assert qa.interval_sec == 4.0
     assert all("scope" in question for question in qa.questions)
+    assert qa.universal_question_ids == (
+        "q07",
+        "q14",
+        "q13",
+        "mission_state",
+        "q20",
+    )
+    assert len(qa.universal_questions) == 5
 
 
 def test_question_relevance_follows_area_and_observed_scene() -> None:
@@ -234,9 +252,11 @@ def test_question_relevance_follows_area_and_observed_scene() -> None:
         "behavior_decision": {"decision": "PASS", "occupancy": []},
         "people_ahead": (),
         "nearby_people": (),
+        "camera_frustum_people": (),
+        "camera_person_detection": {"visible": False},
     }
     charging = eligible({**base, "area": "khu sạc AGV"})
-    assert {"q01", "q18", "q20"} <= charging
+    assert {"q01", "mission_state", "q20"} <= charging
     assert {"q05", "q13", "q14", "q19"}.isdisjoint(charging)
 
     shelf = eligible({**base, "area": "khu kệ A", "linear_x": 0.25})
@@ -249,6 +269,8 @@ def test_question_relevance_follows_area_and_observed_scene() -> None:
         "linear_x": 0.25,
         "front_clearance": 1.5,
         "people_ahead": ((1.5, "random_worker_1"),),
+        "camera_frustum_people": ((1.5, "random_worker_1", 0.0),),
+        "camera_person_detection": {"visible": True},
     })
     assert {"q05", "q06", "q07", "q10", "q13", "q16"} <= event
 
@@ -279,7 +301,7 @@ def test_context_change_does_not_replace_question_inside_reading_interval() -> N
     }
     qa.latest_stream_elapsed_s = 3.8
     second = qa.active()
-    assert first["id"] == second["id"] == "q01"
+    assert first["id"] == second["id"] == "q07"
 
 
 def test_observed_mode_answers_fixed_questions_from_current_stream_state() -> None:
@@ -363,8 +385,13 @@ def test_visible_answers_do_not_expose_internal_data_sources() -> None:
         "theo lệnh",
         "dữ liệu",
     )
-    for index in range(1, 21):
-        _, answer = PreparedQA._answer(f"q{index:02d}", snapshot)
+    question_ids = tuple(f"q{index:02d}" for index in range(1, 18)) + (
+        "mission_state",
+        "q19",
+        "q20",
+    )
+    for question_id in question_ids:
+        _, answer = PreparedQA._answer(question_id, snapshot)
         lowered = answer.lower()
         assert all(word not in lowered for word in forbidden), answer
 
@@ -376,6 +403,172 @@ def test_dashboard_line_preserves_vietnamese_diacritics() -> None:
     DashboardRenderer._line(unaccented, "Phia truoc co vat can", 8, 45)
     assert np.any(accented)
     assert not np.array_equal(accented, unaccented)
+
+
+def test_live_model_answers_change_with_current_environment() -> None:
+    start = {
+        "linear_x": 0.0,
+        "angular_z": 0.0,
+        "front_clearance": math.inf,
+        "obstacle": None,
+        "behavior_decision": {"decision": "PASS", "occupancy": []},
+        "people_ahead": (),
+        "nearby_people": (),
+        "camera_frustum_people": (),
+        "camera_person_detection": {"visible": False},
+        "area": "khu sạc AGV",
+        "mission_state": {"state": "WAITING"},
+    }
+    shelf_turn = {
+        "linear_x": 0.20,
+        "angular_z": -0.35,
+        "front_clearance": 0.8,
+        "obstacle": SimpleNamespace(bearing_rad=-0.5),
+        "behavior_decision": {
+            "decision": "PASS",
+            "person_id": "random_worker_1",
+            "predicted_speed_mps": 0.35,
+            "occupancy": [{"path_occupied": True}],
+        },
+        "people_ahead": ((1.2, "random_worker_1"),),
+        "nearby_people": (),
+        "camera_frustum_people": ((1.2, "random_worker_1", 0.0),),
+        "camera_person_detection": {
+            "visible": True,
+            "far": False,
+            "on_path": True,
+            "moving": True,
+        },
+        "area": "khu kệ A",
+        "mission_state": {"state": "ALIGN_PACKAGE"},
+    }
+    packing = {
+        "linear_x": 0.30,
+        "angular_z": 0.0,
+        "front_clearance": math.inf,
+        "obstacle": None,
+        "behavior_decision": {
+            "decision": "PASS",
+            "person_id": "random_worker_2",
+            "predicted_speed_mps": 0.30,
+            "occupancy": [{"path_occupied": False}],
+        },
+        "people_ahead": (),
+        "nearby_people": ((2.0, "random_worker_2"),),
+        "camera_frustum_people": ((2.0, "random_worker_2", 0.5),),
+        "camera_person_detection": {
+            "visible": True,
+            "far": False,
+            "on_path": False,
+            "moving": True,
+        },
+        "area": "khu đóng gói",
+        "mission_state": {"state": "RETURN_TO_DROPOFF"},
+    }
+
+    assert [
+        live_model_answer_key(question_id, start)
+        for question_id in ("q07", "q14", "q13", "mission_state", "q20")
+    ] == ["none", "clear", "none", "finish", "stop"]
+    assert [
+        live_model_answer_key(question_id, shelf_turn)
+        for question_id in ("q07", "q14", "q13", "mission_state", "q20")
+    ] == ["right", "blocked", "on_path_moving", "align", "right"]
+    assert [
+        live_model_answer_key(question_id, packing)
+        for question_id in ("q07", "q14", "q13", "mission_state", "q20")
+    ] == ["none", "clear", "near_clear", "transport", "straight"]
+
+
+def test_q13_ignores_people_outside_the_front_camera() -> None:
+    snapshot = {
+        "behavior_decision": {
+            "decision": "WAIT",
+            "person_id": "random_worker_1",
+            "predicted_speed_mps": 0.4,
+            "occupancy": [{"path_occupied": True}],
+        },
+        "people_ahead": (),
+        "nearby_people": ((0.8, "random_worker_1"),),
+        "camera_frustum_people": (),
+        "camera_person_detection": {
+            "visible": True,
+            "far": False,
+            "on_path": True,
+            "moving": True,
+        },
+    }
+    assert live_model_answer_key("q13", snapshot) == "none"
+
+
+def test_q13_matches_pixel_detection_to_projected_worker_bearing() -> None:
+    snapshot = {
+        "camera_frustum_people": ((2.0, "random_worker_1", 0.45),),
+        "camera_person_detection": {
+            "visible": True,
+            "bbox": (500, 80, 70, 220),
+            "frame_size": (640, 360),
+            "far": False,
+            "on_path": False,
+            "moving": False,
+        },
+    }
+    assert live_model_answer_key("q13", snapshot) == "none"
+
+
+def test_camera_frustum_uses_robot_heading_and_camera_fov() -> None:
+    entities = (
+        EntityPose("random_worker_front", 2.0, 0.0),
+        EntityPose("random_worker_side", 0.0, 2.0),
+        EntityPose("random_worker_behind", -2.0, 0.0),
+    )
+    visible = people_in_camera_frustum(
+        agv_x=0.0,
+        agv_y=0.0,
+        agv_yaw=0.0,
+        entities=entities,
+    )
+    assert [item[1] for item in visible] == ["random_worker_front"]
+
+
+def test_five_cards_render_one_live_model_answer_each() -> None:
+    engine = PreparedQA(
+        Path(__file__).resolve().parents[2]
+        / "vjepa_visual_localization/configs/warehouse_live_questions.yaml"
+    )
+    qa = engine.active(now=engine.started)
+    renderer = object.__new__(DashboardRenderer)
+
+    image = renderer.render_questions(qa)
+    assert image.shape == (QUESTIONS_HEIGHT, QUESTIONS_WIDTH, 3)
+    cards = qa["display_questions"]
+    assert len(cards) == 5
+    assert all(len(card["choices"]) >= 3 for card in cards)
+    assert all(card["model_selected_key"] for card in cards)
+    active_card = next(card for card in cards if card["is_active"])
+    assert qa["display_question"] == active_card["question"]
+    assert qa["display_answer"] == active_card["model_selected_answer"]
+    assert qa["display_answer_key"] == active_card["model_selected_key"]
+    assert not hasattr(renderer, "quiz_selected")
+    assert not hasattr(renderer, "quiz_submitted")
+    assert np.any(image)
+
+
+def test_camera_query_cycles_through_the_same_five_question_cards() -> None:
+    engine = PreparedQA(
+        Path(__file__).resolve().parents[2]
+        / "vjepa_visual_localization/configs/warehouse_live_questions.yaml"
+    )
+    engine.last_sequence = 0
+    for index in range(5):
+        engine.latest_stream_elapsed_s = index * engine.interval_sec
+        qa = engine.active()
+        active_card = next(
+            card for card in qa["display_questions"] if card["is_active"]
+        )
+        assert qa["index"] == active_card["index"] == index
+        assert qa["display_question"] == active_card["question"]
+        assert qa["display_answer"] == active_card["model_selected_answer"]
 
 
 def test_query_conditioned_answer_latent_selects_policy_candidate() -> None:
@@ -458,9 +651,9 @@ def test_prepared_qa_exposes_answer_latent_for_renderer() -> None:
     )
     active = qa.active()
     report = active["answer_latent"]
-    assert active["id"] == "q01"
+    assert active["id"] == "q07"
     assert report is not None
-    assert report["question_id"] == "q01"
+    assert report["question_id"] == "q07"
     assert active["stable"] == report["selected_answer"]
 
     canvas = np.zeros((568, 1440, 3), dtype=np.uint8)
@@ -474,6 +667,15 @@ def test_prepared_qa_exposes_answer_latent_for_renderer() -> None:
     ).astype(np.uint8)
     components, _ = cv2.connectedComponents(red_mask)
     assert components - 1 == 1
+
+
+def test_stabilized_marker_snaps_to_each_new_target() -> None:
+    renderer = AnswerLatentRenderer()
+    first = np.asarray((-0.8, 0.25), dtype=np.float32)
+    second = np.asarray((0.9, -0.6), dtype=np.float32)
+
+    assert np.array_equal(renderer._stabilized_for_display(first), first)
+    assert np.array_equal(renderer._stabilized_for_display(second), second)
 
 
 def test_instant_prediction_can_differ_until_stabilization_catches_up() -> None:
@@ -490,7 +692,7 @@ def test_instant_prediction_can_differ_until_stabilization_catches_up() -> None:
         qa.update(
             {
                 "sequence": sequence,
-                "stream_elapsed_s": 12.0,
+            "stream_elapsed_s": 4.0,
                 "linear_x": 0.25,
                 "angular_z": 0.0,
                 "front_clearance": clearance,
@@ -510,11 +712,11 @@ def test_instant_prediction_can_differ_until_stabilization_catches_up() -> None:
 
     clear = update(1, 5.0)
     transition = update(2, 1.5)
-    assert clear["id"] == "q04"
+    assert clear["id"] == "q14"
     assert transition["answer_latent"]["selected_answer"].startswith(
-        "Phía trước bị chặn"
+        "Khoảng trống phía trước hơi hẹp"
     )
-    assert transition["stable"].startswith("Phía trước đang thoáng")
+    assert transition["stable"].startswith("Khoảng trống phía trước đủ rộng")
     assert not np.allclose(
         transition["answer_latent"]["predicted_point_2d"],
         transition["answer_latent"]["stabilized_point_2d"],
@@ -522,4 +724,4 @@ def test_instant_prediction_can_differ_until_stabilization_catches_up() -> None:
 
     update(3, 1.5)
     stabilized = update(4, 1.5)
-    assert stabilized["stable"].startswith("Phía trước bị chặn")
+    assert stabilized["stable"].startswith("Khoảng trống phía trước hơi hẹp")

@@ -1,0 +1,444 @@
+================================================================
+BỘ CÂU HỎI CỐ ĐỊNH + BẢNG ĐÁP ÁN HARD-CODE
+VL-JEPA Warehouse - phục vụ lập kế hoạch đường đi cho AGV
+================================================================
+
+CÁCH DÙNG
+  - 20 câu hỏi dưới đây là CỐ ĐỊNH, không đổi theo tình huống.
+  - Mỗi chu kỳ (1 giây) hỏi hết 20 câu, nhận 20 đáp án, đưa vào planner.
+  - Đáp án hard-code tra theo phân đoạn thời gian của video.
+  - Câu hỏi được viết tổng quát để giây nào cũng trả lời được, không
+    câu nào nhắc tên riêng của vật thể chỉ xuất hiện một lần.
+  - Đáp án chỉ dùng thứ nhìn thấy được từ camera đơn: hướng, phình to
+    hay nhỏ đi, trôi trái hay phải, mở ra hay khép lại. Không có mét,
+    không có m/s, không có thời gian va chạm tính bằng giây.
+
+================================================================
+PHẦN A - 20 CÂU HỎI CỐ ĐỊNH
+================================================================
+
+Q01. Robot đang đứng yên hay đang di chuyển, nhanh hay chậm?
+Q02. Robot đang đi thẳng, cua trái hay cua phải?
+Q03. Tốc độ đang tăng, giữ đều hay đang giảm?
+Q04. Phía trước nhìn được xa hay bị chặn gần?
+Q05. Trong khung hình có vật nào đang phình to lên không?
+Q06. Vật đang phình to đó đứng yên hay tự nó di chuyển?
+Q07. Vật cản gần nhất nằm bên trái, chính giữa hay bên phải?
+Q08. Giữ nguyên hướng và tốc độ thì vài giây tới có đâm vào gì không?
+Q09. Nên đi tiếp, chậm lại hay dừng hẳn?
+Q10. Nếu phải né thì né sang bên nào?
+Q11. Lối đi phía trước đang rộng ra hay hẹp lại?
+Q12. Robot có đang lệch về một bên lối đi không?
+Q13. Có người trong khung hình không, họ đứng yên hay đang đi?
+Q14. Có vạch kẻ dưới sàn không, nó dẫn đi đâu?
+Q15. Sắp tới có ngã rẽ hay lối cụt không?
+Q16. Chỗ nào đang bị che khuất, có thể có vật lao ra bất ngờ?
+Q17. Vài giây tới cảnh trước mặt sẽ thay đổi thế nào?
+Q18. Có mốc nào để định vị không (biển chữ, ô màu, pad sàn)?
+Q19. Chỗ này có dễ nhầm với đoạn khác trong kho không?
+Q20. Hành động cụ thể cho 2 giây tới là gì?
+
+================================================================
+PHẦN B - BẢNG ĐÁP ÁN THEO PHÂN ĐOẠN (video.mp4, 227 giây)
+================================================================
+
+---------------- S1 | t = 0 - 6s | trên pad sạc chữ P ----------------
+Q01. Đang di chuyển tới, rất chậm, vừa mới lăn bánh.
+Q02. Đi thẳng, chưa đánh lái.
+Q03. Đang tăng nhẹ từ trạng thái đứng yên.
+Q04. Nhìn được xa, hết chiều dài kho, chỉ có cột đỡ chắn từng khúc.
+Q05. Có, một khối hộp màu ô liu ở chính giữa phía trước.
+Q06. Đứng yên, nó lớn lên đúng theo nhịp kệ nền trôi ra.
+Q07. Chính giữa, hơi lệch trái.
+Q08. Có, nếu giữ nguyên hướng sẽ tiến thẳng vào khối hộp đó.
+Q09. Đi tiếp nhưng giữ chậm, chưa cần dừng.
+Q10. Né sang phải, bên phải sàn trống hơn.
+Q11. Rộng ra, robot đang rời pad để vào lối đi chính.
+Q12. Không, đang ở giữa pad.
+Q13. Có, một người đứng ở xa phía trước, không đổi vị trí so với kệ nền nên đang đứng yên.
+Q14. Có, viền đen của pad sạc và chữ P dưới sàn, nó đánh dấu chỗ đứng hiện tại.
+Q15. Chưa thấy ngã rẽ, phía trước còn là lối thẳng dài.
+Q16. Sau các cột đỡ màu cam và sau khối hộp ô liu.
+Q17. Pad trắng sẽ trượt hết xuống dưới khung hình, kệ hai bên bắt đầu giãn ra nhanh hơn.
+Q18. Có, pad chữ P dưới sàn và biển chữ Q trên dãy kệ trái.
+Q19. Không, khu pad sạc rất đặc trưng, dễ nhận.
+Q20. Chạy thẳng chậm để rời pad, bám lệch nhẹ sang phải.
+
+---------------- S2 | t = 6 - 16s | ra khỏi pad, vào lối T/U ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng.
+Q03. Đang tăng dần.
+Q04. Nhìn được xa, lối đi mở suốt tới cuối tầm nhìn.
+Q05. Có, khối ô liu vẫn đang lớn lên nhưng đã lệch hẳn sang trái.
+Q06. Đứng yên.
+Q07. Bên trái, đang quét ra khỏi khung hình.
+Q08. Không, nó sẽ ra khỏi đường đi trước khi robot tới nơi.
+Q09. Đi tiếp bình thường.
+Q10. Không cần né thêm, giữ hướng hiện tại là đủ.
+Q11. Ổn định, hai dãy kệ song song đều nhau.
+Q12. Không, điểm tụ của lối đi nằm gần giữa khung hình.
+Q13. Không còn thấy người trong khung hình.
+Q14. Không thấy vạch dẫn hướng ở đoạn này.
+Q15. Chưa, còn là lối thẳng.
+Q16. Sau các cột đỡ cam và sau mép các dãy kệ.
+Q17. Khối ô liu biến mất bên trái, phía xa lộ ra một khối màu xanh nhỏ ở giữa lối.
+Q18. Có, biển chữ T và U trên đầu dãy kệ bên phải.
+Q19. Hơi dễ nhầm, các nhịp kệ khá giống nhau, phải bám vào biển chữ cái.
+Q20. Chạy thẳng, tăng dần tốc độ.
+
+---------------- S3 | t = 16 - 30s | hành lang dài, trống ----------------
+Q01. Đang di chuyển tới, nhanh và đều.
+Q02. Đi thẳng.
+Q03. Giữ đều.
+Q04. Nhìn rất xa, không có gì chắn ngang.
+Q05. Có, một khối màu xanh ở cuối lối nhưng lớn lên rất chậm.
+Q06. Đứng yên.
+Q07. Chính giữa, còn ở rất xa.
+Q08. Chưa, còn quá xa để thành nguy cơ.
+Q09. Đi tiếp, đây là đoạn có thể chạy nhanh nhất.
+Q10. Chưa cần né.
+Q11. Giữ nguyên, lối đi rộng và đều.
+Q12. Không, đang bám giữa lối tốt.
+Q13. Không có người.
+Q14. Không thấy vạch ở đoạn này.
+Q15. Chưa thấy, nhưng cuối lối trời sáng hơn, có thể là chỗ mở ra.
+Q16. Sau các cột đỡ và các khe giữa hai dãy kệ.
+Q17. Khối xanh cuối lối sẽ to dần lên đều đặn, kệ hai bên tiếp tục trôi ra.
+Q18. Có, các biển chữ W và X trên đầu kệ.
+Q19. Dễ nhầm, đoạn này lặp lại nhiều nhịp kệ giống nhau.
+Q20. Giữ thẳng, giữ tốc độ cao.
+
+---------------- S4 | t = 30 - 37s | khối xanh lớn nhanh ----------------
+Q01. Đang di chuyển tới, nhanh.
+Q02. Đi thẳng.
+Q03. Giữ đều, nhưng nên bắt đầu giảm.
+Q04. Tầm nhìn bắt đầu bị vật màu xanh chắn một phần.
+Q05. Có, khối màu xanh đang phình to nhanh dần.
+Q06. Đứng yên, nó lớn lên do robot tiến tới.
+Q07. Chính giữa hơi lệch trái.
+Q08. Có, giữ nguyên hướng sẽ đâm vào nó.
+Q09. Chậm lại.
+Q10. Né sang phải, sàn bên phải còn trống.
+Q11. Hẹp lại về mặt đường đi được, vì vật chiếm dần phần giữa.
+Q12. Không, nhưng nên chủ động lệch phải ngay.
+Q13. Không có người.
+Q14. Không thấy vạch.
+Q15. Chưa thấy rõ, vật chắn đang che phần cuối lối.
+Q16. Ngay sau khối xanh, hoàn toàn không nhìn thấy gì.
+Q17. Khối xanh sẽ phình to rất nhanh và trôi sang trái khi robot vượt qua.
+Q18. Có, biển chữ W và X hai bên.
+Q19. Không, khối xanh giữa lối là mốc khá riêng.
+Q20. Giảm tốc, đánh lái nhẹ sang phải để chuẩn bị vượt.
+
+---------------- S5 | t = 37 - 42s | đang vượt khối xanh ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng, hơi chếch phải.
+Q03. Đang giảm nhẹ.
+Q04. Bị chắn nặng bên trái, nhưng bên phải và phía trước vẫn thoáng.
+Q05. Có, khối xanh chiếm gần nửa khung hình bên trái.
+Q06. Đứng yên.
+Q07. Bên trái, rất gần, đang quét ra khỏi khung hình.
+Q08. Không, nếu giữ lệch phải như hiện tại thì sẽ đi lọt qua.
+Q09. Đi tiếp, giữ tốc độ vừa.
+Q10. Đang né sang phải, giữ nguyên như vậy.
+Q11. Sắp rộng ra, phía sau vật là khoảng trống lớn.
+Q12. Có, đang lệch phải một chút, đúng theo ý đồ né.
+Q13. Không có người.
+Q14. Bắt đầu thấy vạch vàng dưới sàn phía xa.
+Q15. Sắp tới, phía trước hai dãy kệ kết thúc và cảnh mở rộng.
+Q16. Toàn bộ phần bên trái bị khối xanh che.
+Q17. Khối xanh sẽ biến mất khỏi mép trái, một ngã tư rộng lộ ra.
+Q18. Có, biển chữ X bên phải.
+Q19. Không, đoạn đang vượt vật cản là mốc rõ.
+Q20. Giữ hướng thêm một nhịp rồi trả lái về giữa lối.
+
+---------------- S6 | t = 42 - 52s | ngã tư trước dãy kệ A ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng.
+Q03. Nên giảm vì sắp vào ngã tư.
+Q04. Nhìn rất xa và rộng, cảnh vừa mở ra hai bên.
+Q05. Có, một khối màu tím ở giữa lối phía xa, lớn lên chậm.
+Q06. Đứng yên.
+Q07. Chính giữa, còn xa.
+Q08. Chưa, còn đủ chỗ.
+Q09. Chậm lại để qua ngã tư.
+Q10. Chưa cần né.
+Q11. Rộng ra rõ rệt, đây là chỗ giao nhau của các lối.
+Q12. Không.
+Q13. Không có người trong khung hình.
+Q14. Có, vạch vàng dưới sàn tách thành nhánh trái và nhánh phải.
+Q15. Có, đây là ngã tư, ba hướng đều đi được.
+Q16. Hai nhánh ngang bị chân kệ ở góc che gần hết, đây là chỗ nguy hiểm nhất.
+Q17. Robot sẽ vào giữa ngã tư, hai nhánh ngang lần lượt lộ ra rồi lùi về sau.
+Q18. Có, biển chữ A trên dãy kệ đối diện.
+Q19. Không, ngã tư có biển A là mốc rõ ràng.
+Q20. Bò chậm qua ngã tư, mặc định đi thẳng, chỉ tăng tốc khi đã nhìn rõ hai nhánh ngang.
+
+---------------- S7 | t = 52 - 75s | bám vạch vàng, vào lối F/G ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng, sau đó chuyển sang cua phải nhẹ.
+Q03. Giữ đều, giảm nhẹ khi vào cua.
+Q04. Nhìn được vừa phải, dãy kệ bên phải chắn tầm nhìn chéo.
+Q05. Không có vật nào phình to nhanh, chỉ có mặt kệ trôi ngang.
+Q06. Không áp dụng, không có vật cản rời trong lối.
+Q07. Mặt kệ bên phải là thứ gần nhất.
+Q08. Không đâm vào vật rời, nhưng có nguy cơ cạ vào kệ phải nếu cứ lệch.
+Q09. Đi tiếp, giảm nhẹ khi vào khúc cua.
+Q10. Lệch nhẹ sang trái để tách khỏi kệ phải.
+Q11. Ổn định.
+Q12. Có, đang dần lệch về phía kệ bên phải.
+Q13. Không có người.
+Q14. Có, vạch vàng chạy thẳng rồi bẻ sang phải phía trước.
+Q15. Có một khúc cua phải, không phải ngã rẽ chọn hướng.
+Q16. Các khe giữa nhịp kệ bên phải.
+Q17. Vạch vàng sẽ dẫn robot vào khúc cua phải, cảnh xoay dần sang trái.
+Q18. Có, biển chữ F và G, và các ô màu nhỏ gắn trên mặt kệ.
+Q19. Có, các nhịp kệ ở đây rất giống nhau.
+Q20. Trả lái nhẹ sang trái để về giữa lối, chuẩn bị vào cua phải theo vạch.
+
+---------------- S8 | t = 75 - 95s | khối tím lướt qua sườn ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng.
+Q03. Giữ đều.
+Q04. Nhìn được vừa phải, phần giữa bị khối tím che dần.
+Q05. Có, khối màu tím đang phình to.
+Q06. Đứng yên, nó vừa lớn lên vừa trôi ngang theo nhịp của kệ nền.
+Q07. Chính giữa rồi dần lệch sang phải.
+Q08. Không, nó đang trôi ra khỏi hướng đi.
+Q09. Đi tiếp, không cần dừng.
+Q10. Lệch nhẹ sang trái.
+Q11. Tạm hẹp lại khi vật ở giữa, sau đó rộng lại.
+Q12. Không đáng kể.
+Q13. Không có người.
+Q14. Có, vạch vàng chạy dọc theo lối.
+Q15. Chưa, còn là lối thẳng.
+Q16. Ngay sau khối tím và sau các chân kệ.
+Q17. Khối tím sẽ lướt qua sườn phải rồi ra khỏi khung hình, lối trước mặt thoáng lại.
+Q18. Có, các ô màu xanh lá, đỏ, xanh dương gắn trên mặt kệ.
+Q19. Có, nếu không nhìn thấy ô màu thì đoạn này giống nhiều đoạn khác.
+Q20. Giữ thẳng, lệch nhẹ trái, giữ nguyên tốc độ.
+
+---------------- S9 | t = 95 - 120s | áp sát mặt kệ, cảnh lặp ----------------
+Q01. Đang di chuyển tới, chậm dần.
+Q02. Đi thẳng.
+Q03. Nên giảm.
+Q04. Nhìn rất gần, khung hình gần như chỉ có mặt kệ.
+Q05. Có, mặt kệ bên trái đang lớn lên và trượt ngang rất nhanh.
+Q06. Đứng yên, đó là kết cấu cố định chứ không phải vật rời.
+Q07. Bên trái, rất gần.
+Q08. Có nguy cơ cạ vào pallet nhô ra nếu cứ giữ hướng.
+Q09. Chậm lại.
+Q10. Né sang phải, tách ra khỏi mặt kệ.
+Q11. Hẹp lại, khoảng sàn trống thu nhỏ nhanh.
+Q12. Có, đang ép quá sát kệ bên trái.
+Q13. Không có người.
+Q14. Không thấy vạch, bị mặt kệ che.
+Q15. Không nhìn thấy được, tầm nhìn bị chắn.
+Q16. Gần như toàn bộ phía trước bị mặt kệ che, đây là tư thế xấu.
+Q17. Nếu giữ nguyên thì cảnh vẫn chỉ là mặt kệ lặp lại, không có thông tin mới.
+Q18. Kém, chỉ có vài ô màu trên mặt kệ, không thấy biển chữ cái.
+Q19. Rất dễ nhầm, các kiện hàng giống hệt nhau nên cảnh này trùng với nhiều đoạn khác trong kho.
+Q20. Giảm tốc, lái ra giữa lối để lấy lại tầm nhìn và tìm biển chữ cái rồi mới đi tiếp.
+
+---------------- S10 | t = 120 - 134s | cuối lối, ra ngã tư E/R ----------------
+Q01. Đang di chuyển tới, tốc độ vừa.
+Q02. Đi thẳng, sau đó bẻ nhẹ sang phải theo vạch.
+Q03. Nên giảm dần vì sắp ra chỗ giao.
+Q04. Đang mở rộng ra, nhìn được xa hơn.
+Q05. Có, khối màu tím ở phía trước bên trái.
+Q06. Đứng yên.
+Q07. Bên trái.
+Q08. Không, nó sẽ lướt qua sườn trái.
+Q09. Chậm lại dần.
+Q10. Lệch nhẹ sang phải.
+Q11. Rộng ra, hai dãy kệ sắp kết thúc.
+Q12. Không đáng kể.
+Q13. Không có người.
+Q14. Có, vạch vàng bẻ gãy sang phải ngay phía trước.
+Q15. Có, một lối ngang sắp mở ra ở cuối đoạn này.
+Q16. Hai bên đầu dãy kệ, nơi lối ngang sắp lộ ra.
+Q17. Ba việc nối nhau: khối tím lướt qua trái, vạch vàng bẻ phải, rồi lối ngang mở ra.
+Q18. Có, các biển chữ E, R, Q lần lượt hiện ra phía xa.
+Q19. Không, chuỗi biển chữ ở đây khá riêng.
+Q20. Giảm tốc dần, bám theo vạch vàng bẻ sang phải.
+
+---------------- S11 | t = 134 - 158s | lối chính dài, mốc xanh cuối lối ----------------
+Q01. Đang di chuyển tới, nhanh và đều.
+Q02. Đi thẳng.
+Q03. Giữ đều ở đầu đoạn, phải giảm ở cuối đoạn.
+Q04. Nhìn rất xa, suốt chiều dài lối chính.
+Q05. Có, một khối màu xanh ở cuối lối, ban đầu lớn chậm rồi nhanh dần.
+Q06. Đứng yên.
+Q07. Chính giữa.
+Q08. Có, ở cuối đoạn này nếu không giảm tốc thì sẽ tới quá gần.
+Q09. Đi tiếp nhanh ở nửa đầu, chậm lại rõ ở nửa sau.
+Q10. Chưa cần né, đây là mốc đích chứ không phải vật phải tránh.
+Q11. Ổn định, lối rộng đều suốt đoạn.
+Q12. Không, hai dãy kệ trôi ra cân nhau.
+Q13. Không có người.
+Q14. Có, vạch vàng chạy dọc mép lối.
+Q15. Không, suốt đoạn này không có lối nào cắt ngang.
+Q16. Các khe giữa nhịp kệ hai bên.
+Q17. Khối xanh cuối lối sẽ to lên ngày càng nhanh, đó là tín hiệu sắp phải phanh.
+Q18. Có, các biển chữ Q, U bên trái và X, H bên phải.
+Q19. Không, lối chính dài có mốc xanh cuối lối là đặc trưng.
+Q20. Chạy thẳng đều, khi khối xanh bắt đầu to lên nhanh thì bắt đầu giảm tốc.
+
+---------------- S12 | t = 158 - 195s | vùng trống, cua trái, kệ P/I/J ----------------
+Q01. Đang di chuyển, chậm hơn đoạn trước.
+Q02. Đang cua trái, cả cảnh nền trượt đều sang phải.
+Q03. Giảm khi vào cua, giữ đều khi ra cua.
+Q04. Nhìn được xa, đây là vùng trống ít kệ.
+Q05. Có, một khối màu cam bên phải, lớn lên chậm.
+Q06. Đứng yên.
+Q07. Bên phải, không nằm trên đường đi.
+Q08. Không.
+Q09. Đi tiếp, giữ tốc độ vừa.
+Q10. Chưa cần né.
+Q11. Rộng, đây là khoảng trống lớn giữa các cụm kệ.
+Q12. Không, nhưng đang trong khúc cua nên hướng còn đang đổi.
+Q13. Không có người.
+Q14. Vạch mờ, không rõ ràng ở vùng trống này.
+Q15. Cuối đoạn này tầm nhìn cụt dần vì tường biên hiện ra phía xa.
+Q16. Sau các cụm kệ rời rạc đứng giữa khoảng trống.
+Q17. Cua sẽ hoàn tất, hướng ổn định lại, và một mảng tường bê tông lộ ra phía trước.
+Q18. Có, các biển chữ P, I, J trên các cụm kệ.
+Q19. Không, vùng trống nhiều kệ rời là mốc dễ nhận.
+Q20. Giữ nguyên lượng đánh lái cho hết cua rồi trả lái về thẳng.
+
+---------------- S13 | t = 195 - 214s | tường biên, ngõ cụt ----------------
+Q01. Đang di chuyển tới, chậm.
+Q02. Đi thẳng.
+Q03. Đang giảm.
+Q04. Bị chặn, tường bê tông trải hết chiều ngang khung hình.
+Q05. Có, mảng tường đang lớn lên đều.
+Q06. Đứng yên, đó là kết cấu cố định.
+Q07. Chính giữa, trải hết cả bề ngang.
+Q08. Có, đi thẳng nữa là đâm vào tường.
+Q09. Dừng lại trước tường.
+Q10. Né bằng cách xoay tại chỗ, không lách được vì hai bên không còn khe.
+Q11. Hẹp lại tới mức không đi tiếp được, đây là ngõ cụt.
+Q12. Không.
+Q13. Không có người.
+Q14. Có, vạch vàng chạy dọc chân tường, đó là hướng duy nhất đi tiếp được.
+Q15. Lối cụt, phải quay đầu hoặc bám tường.
+Q16. Hai đầu bức tường, nơi vạch vàng chạy khuất đi.
+Q17. Tường sẽ chiếm hết khung hình nếu không dừng, sau khi xoay thì lối dọc tường lộ ra.
+Q18. Có, tường biên và các cụm kệ I, J, đây là rìa kho.
+Q19. Không, tường biên là mốc rất rõ.
+Q20. Dừng cách tường một quãng an toàn, xoay tại chỗ về phía có vạch vàng, rồi bám theo vạch.
+
+---------------- S14 | t = 214 - 227s | khu pad sạc dọc tường ----------------
+Q01. Đang di chuyển, chậm.
+Q02. Đi thẳng men theo tường.
+Q03. Giữ chậm.
+Q04. Bị tường chắn một bên, phía trước dọc tường thì thoáng.
+Q05. Không có vật nào phình to nhanh.
+Q06. Không áp dụng.
+Q07. Bức tường bên cạnh là thứ gần nhất.
+Q08. Không, nếu giữ hướng men theo tường.
+Q09. Đi tiếp thật chậm.
+Q10. Không cần né, chỉ cần giữ khoảng cách với tường.
+Q11. Ổn định, đủ rộng để đi men.
+Q12. Có, đang đi sát tường một cách chủ ý.
+Q13. Không có người ở gần, chỉ thấy vài dáng người rất xa ở giữa kho.
+Q14. Có, vạch vàng chạy dọc chân tường dẫn qua các pad sạc.
+Q15. Không có ngã rẽ, nhưng có điểm dừng là các pad sạc.
+Q16. Phía sau các cột đỡ cam ở cuối dãy tường.
+Q17. Các tấm pad màu xanh lơ sẽ lần lượt tiến lại gần phía trước bên phải.
+Q18. Có, các pad màu xanh lơ dưới sàn và vạch vàng, đây là khu sạc.
+Q19. Không, khu sạc rất đặc trưng.
+Q20. Đi chậm men theo vạch, khi pad gần nhất tới ngang tầm thì đánh lái phải cho mũi robot hướng vuông vào pad rồi bò từ từ vào.
+
+================================================================
+PHẦN C - BẢNG ĐÁP ÁN (Keyboard_control.webm, 94 giây)
+Chế độ điều khiển bằng bàn phím, dùng cùng 20 câu hỏi trên.
+================================================================
+
+---------------- K1 | t = 0 - 20s | trên pad P, vừa nhấn phím tiến ----------------
+Q01. Đang di chuyển tới, chậm, theo lệnh phím tiến.
+Q02. Đi thẳng.
+Q03. Đang tăng nhẹ.
+Q04. Nhìn được xa, hết chiều dài kho.
+Q05. Có, khối hộp màu ô liu ở giữa phía trước.
+Q06. Đứng yên.
+Q07. Chính giữa.
+Q08. Có, nếu giữ phím tiến đủ lâu.
+Q09. Cho đi tiếp, nhưng chuẩn bị hạ tốc.
+Q10. Né sang phải.
+Q11. Rộng ra khi rời pad.
+Q12. Không.
+Q13. Có, một người đứng yên ở xa phía trước bên trái.
+Q14. Có, viền pad sạc và chữ P dưới sàn.
+Q15. Chưa, phía trước là lối thẳng.
+Q16. Sau khối hộp ô liu và sau các cột cam.
+Q17. Pad trắng trượt khỏi khung hình, khối hộp ô liu to dần lên.
+Q18. Có, pad chữ P và biển chữ Q.
+Q19. Không.
+Q20. Chấp nhận lệnh tiến, tự động hạ tốc khi khối hộp chiếm phần lớn khung hình.
+
+---------------- K2 | t = 20 - 45s | đi trong lối, lệnh tiến đều ----------------
+Q01. Đang di chuyển tới, tốc độ vừa, có lúc dừng hẳn khi nhả phím.
+Q02. Đi thẳng.
+Q03. Thay đổi theo lệnh phím, không đều.
+Q04. Nhìn được xa dọc lối đi.
+Q05. Không có vật nào phình to nhanh.
+Q06. Không áp dụng.
+Q07. Mặt kệ hai bên là thứ gần nhất.
+Q08. Không.
+Q09. Cho đi tiếp.
+Q10. Chưa cần né.
+Q11. Ổn định.
+Q12. Không đáng kể.
+Q13. Không có người trong khung hình.
+Q14. Có, vạch vàng dọc mép lối.
+Q15. Chưa thấy.
+Q16. Các khe giữa nhịp kệ.
+Q17. Cảnh giữ nguyên kiểu lối đi thẳng, kệ trôi đều hai bên.
+Q18. Có, biển chữ cái trên đầu các dãy kệ.
+Q19. Có, các nhịp kệ giống nhau.
+Q20. Chấp nhận lệnh tiến, giữ tốc độ hiện tại.
+
+---------------- K3 | t = 45 - 60s | khu kệ C, vật tím sát mũi ----------------
+Q01. Đang di chuyển tới nhưng bị chặn lại.
+Q02. Đi thẳng.
+Q03. Bị ép về không.
+Q04. Bị chặn ngay trước mũi.
+Q05. Có, khối màu tím chiếm gần trọn phần giữa khung hình và vẫn đang phình ra.
+Q06. Đứng yên.
+Q07. Chính giữa, rất gần.
+Q08. Có, giữ phím tiến thêm là đâm vào.
+Q09. Dừng.
+Q10. Né sang phải, bên đó còn thấy sàn trống dẫn ra giữa kho.
+Q11. Hẹp lại tới mức không qua được.
+Q12. Không, nhưng đang hướng thẳng vào vật.
+Q13. Có một dáng người ở phía xa sau vật cản, đứng yên.
+Q14. Có, vạch vàng dưới chân kệ bên phải.
+Q15. Bị che, không đánh giá được.
+Q16. Toàn bộ phía sau khối tím.
+Q17. Nếu không đổi hướng thì khối tím sẽ chiếm hết khung hình.
+Q18. Có, biển chữ E và C trên các dãy kệ.
+Q19. Không, tư thế sát vật cản là mốc rõ.
+Q20. Chặn lệnh tiến, nhả phím, đánh lái sang phải rồi mới cho đi tiếp.
+
+---------------- K4 | t = 60 - 94s | quay lại lối thoáng ----------------
+Q01. Đang di chuyển tới, chậm.
+Q02. Đi thẳng sau khi đã bẻ lái tránh.
+Q03. Đang tăng lại từ trạng thái bị chặn.
+Q04. Nhìn lại được xa sau khi thoát khỏi vật cản.
+Q05. Có, vật tím vẫn trong khung hình nhưng đang nhỏ đi và lùi ra sau.
+Q06. Đứng yên.
+Q07. Bên trái, đang lùi lại phía sau.
+Q08. Không.
+Q09. Cho đi tiếp.
+Q10. Không cần né thêm.
+Q11. Rộng ra.
+Q12. Hơi lệch, hệ quả của thao tác tránh, nên trả về giữa lối.
+Q13. Không có người ở gần.
+Q14. Có, vạch vàng dẫn ra giữa kho.
+Q15. Phía trước có chỗ mở ra giữa các dãy kệ.
+Q16. Hai bên đầu dãy kệ.
+Q17. Vật tím rời hẳn khung hình, lối đi trước mặt thoáng dần.
+Q18. Có, biển chữ E, F, H.
+Q19. Có, nếu mất biển chữ thì dễ nhầm.
+Q20. Trả lái về giữa lối, tăng tốc trở lại từ từ.

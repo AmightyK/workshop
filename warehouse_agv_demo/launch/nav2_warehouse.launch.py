@@ -8,7 +8,12 @@ import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, Substitution
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    TimerAction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -324,14 +329,23 @@ def generate_launch_description() -> LaunchDescription:
                 "yaml_filename": str(WAREHOUSE_MAP),
             }],
         ),
-        Node(
-            package="nav2_lifecycle_manager", executable="lifecycle_manager",
-            name="lifecycle_manager_map", output="screen",
-            parameters=[{
-                "use_sim_time": True,
-                "autostart": True,
-                "node_names": ["map_server"],
-            }],
+        # LifecycleServiceClient has a fixed 2 s response timeout. Under the
+        # initial Gazebo/RViz/V-JEPA CPU burst, map_server can take almost that
+        # long merely to create its services, causing configuration to finish
+        # just after the client has disappeared. Start its manager only after
+        # the server has had time to initialize; the transient-local /map is
+        # then available before any mission readiness gate can pass.
+        TimerAction(
+            period=3.0,
+            actions=[Node(
+                package="nav2_lifecycle_manager", executable="lifecycle_manager",
+                name="lifecycle_manager_map", output="screen",
+                parameters=[{
+                    "use_sim_time": True,
+                    "autostart": True,
+                    "node_names": ["map_server"],
+                }],
+            )],
         ),
         ExecuteProcess(
             cmd=[
@@ -345,16 +359,24 @@ def generate_launch_description() -> LaunchDescription:
             cmd=["python3", "-u", str(DEMO_DIR / "scripts" / "keyboard_cmd_mux.py")],
             output="screen",
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                str(NAV2_SHARE / "launch" / "navigation_launch.py")
-            ),
-            launch_arguments={
-                "use_sim_time": "True",
-                "autostart": "True",
-                "params_file": configured_params,
-                "use_composition": "False",
-            }.items(),
+        # Planner configuration subscribes to the transient-local map and can
+        # block its lifecycle response until /map exists. Starting navigation
+        # concurrently with the delayed map manager made planner_server miss
+        # LifecycleServiceClient's fixed timeout, leaving bt_navigator forever
+        # unconfigured. Bring the map up first, then launch navigation.
+        TimerAction(
+            period=6.0,
+            actions=[IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    str(NAV2_SHARE / "launch" / "navigation_launch.py")
+                ),
+                launch_arguments={
+                    "use_sim_time": "True",
+                    "autostart": "True",
+                    "params_file": configured_params,
+                    "use_composition": "False",
+                }.items(),
+            )],
         ),
         Node(
             package="rviz2", executable="rviz2", name="rviz2", output="screen",

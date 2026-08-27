@@ -10,15 +10,15 @@
           <ixx>12.8</ixx><iyy>12.8</iyy><izz>3.5</izz>
         </inertia>
       </inertial>
-      <!-- The visual is OpenRobotics' CC0 "Casual female" MakeHuman model,
-           pinned to Fuel version 4. Scale 0.86 lowers it from about 1.77 m to
-           about 1.52 m so it fits this compact warehouse scene. -->
+      <!-- The visual is OpenRobotics' CC0 "Standing person" male MakeHuman
+           model. Scale 0.84 lowers it from about 1.81 m to about 1.52 m so it
+           fits this compact warehouse scene. -->
       <visual name="person_visual">
         <pose>0 0 0.017 0.04 0 0</pose>
         <geometry>
           <mesh>
-            <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Casual%20female/4/files/meshes/casual_female.dae</uri>
-            <scale>0.86 0.86 0.86</scale>
+            <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+            <scale>0.84 0.84 0.84</scale>
           </mesh>
         </geometry>
       </visual>

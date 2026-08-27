@@ -12,6 +12,7 @@ NAV_LOCALIZATION_SOURCE="${WAREHOUSE_NAV_LOCALIZATION_SOURCE:-ground_truth}"
 # authority to stay on the NavFn path through that corner.
 NAV_MAX_LINEAR_SPEED="${WAREHOUSE_NAV_MAX_LINEAR_SPEED:-1.35}"
 PEOPLE_SPEED_SCALE="${WAREHOUSE_PEOPLE_SPEED_SCALE:-0.70}"
+WORKER_4_MODE="${WAREHOUSE_WORKER4_MODE:-proximity}"
 LOG_DIR="${WAREHOUSE_LOG_DIR:-/tmp/warehouse_agv_demo}"
 # Seconds to wait before deciding a freshly spawned component is alive. A
 # crash from a missing interpreter or an unbound variable in a sourced ROS
@@ -24,7 +25,10 @@ DASHBOARD_REFRESH_HZ="${WAREHOUSE_DASHBOARD_REFRESH_HZ:-32}"
 DASHBOARD_MAP_REFRESH_HZ="${WAREHOUSE_DASHBOARD_MAP_REFRESH_HZ:-5}"
 DASHBOARD_ODOM_PROJECTION="${WAREHOUSE_VJEPA_ODOM_PROJECTION:-false}"
 VJEPA_IMAGE_TOPIC="${WAREHOUSE_VJEPA_IMAGE_TOPIC:-/vjepa/camera/image_raw}"
-DASHBOARD_CAMERA_TOPIC="${WAREHOUSE_DASHBOARD_CAMERA_TOPIC:-/camera}"
+# Feed the GUI from the same KEEP_LAST(1) relay as V-JEPA. Subscribing to the
+# bridge camera directly can leave the OpenCV executor decoding an older DDS
+# sample while Gazebo itself continues rendering at full FPS.
+DASHBOARD_CAMERA_TOPIC="${WAREHOUSE_DASHBOARD_CAMERA_TOPIC:-$VJEPA_IMAGE_TOPIC}"
 VJEPA_IMAGE_FPS="${WAREHOUSE_VJEPA_IMAGE_FPS:-32.0}"
 VJEPA_LOCALIZER_ENABLED="${WAREHOUSE_VJEPA_LOCALIZER:-true}"
 VJEPA_PREDICTION_LOGGER_ENABLED="${WAREHOUSE_VJEPA_PREDICTION_LOGGER:-true}"
@@ -73,6 +77,7 @@ printf '%s\n' "${CYAN}${BOLD}╰────────────────
 printf '%s\n' "  ${GREEN}●${RESET} Gazebo partition : $GZ_PARTITION"
 printf '%s\n' "  ${GREEN}●${RESET} Dynamic workers  : 5 (2 cross the pick routes)"
 printf '%s\n' "  ${GREEN}●${RESET} Motion speeds    : AGV ${NAV_MAX_LINEAR_SPEED} m/s · workers scale ${PEOPLE_SPEED_SCALE}x"
+printf '%s\n' "  ${GREEN}●${RESET} Worker 4 scenario : ${WORKER_4_MODE}"
 printf '%s\n' "  ${GREEN}●${RESET} Camera            : 640×360 · 16:9 · 32 FPS"
 printf '%s\n' "  ${GREEN}●${RESET} V-JEPA clip       : rolling 1.0 s · 4 FPS · 4 newest frames"
 printf '%s\n' "  ${GREEN}●${RESET} DDS image topic   : ${VJEPA_IMAGE_TOPIC} · ${VJEPA_IMAGE_FPS} FPS"
@@ -133,7 +138,8 @@ start_component() {
 # simple and the behavior can be paused while rebuilding the static map.
 start_component random_people "" \
   python3 -u "$DEMO_DIR/scripts/random_people.py" \
-  --speed-scale "$PEOPLE_SPEED_SCALE"
+  --speed-scale "$PEOPLE_SPEED_SCALE" \
+  --worker-4-mode "$WORKER_4_MODE"
 
 # run_demo is now the integrated entry point. The bridge starts here so the
 # camera reaches V-JEPA immediately; pick_box only starts a fallback component
@@ -260,11 +266,15 @@ trap cleanup EXIT INT TERM
   )
   for _ in $(seq 1 100); do
     ALL_READY=true
+    # Query Transport discovery once per retry. Calling `gz topic -l` twice
+    # for every carton can take tens of seconds under GUI/V-JEPA load and kept
+    # the entire world paused even though all plugins were already available.
+    TOPIC_LIST="$(gz topic -l 2>/dev/null || true)"
     for MODEL_NAME in "${TASK_BOXES[@]}"; do
-      if ! gz topic -l 2>/dev/null \
-          | grep -Fx "/warehouse_agv/gripper/$MODEL_NAME/detach" >/dev/null \
-        || ! gz topic -l 2>/dev/null \
-          | grep -Fx "/model/$MODEL_NAME/cmd_vel" >/dev/null; then
+      if ! grep -Fx "/warehouse_agv/gripper/$MODEL_NAME/detach" \
+          <<<"$TOPIC_LIST" >/dev/null \
+        || ! grep -Fx "/model/$MODEL_NAME/cmd_vel" \
+          <<<"$TOPIC_LIST" >/dev/null; then
         ALL_READY=false
         break
       fi

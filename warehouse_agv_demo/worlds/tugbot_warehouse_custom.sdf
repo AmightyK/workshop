@@ -392,10 +392,10 @@
     <!-- These LiDAR-visible worker proxies are moved to random safe waypoints
          by scripts/random_people.py, started automatically by run_demo.sh. -->
     <include><uri>model://random_worker</uri><name>random_worker_1</name><pose>-8 -10 0 0 0 0</pose></include>
-    <include><uri>model://random_worker</uri><name>random_worker_2</name><pose>7 3.8 0 0 0 3.14159</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_2</name><pose>7 3.8 0 0 0 1.5708</pose></include>
     <include><uri>model://random_worker</uri><name>random_worker_3</name><pose>-4 17 0 0 0 0</pose></include>
-    <include><uri>model://random_worker</uri><name>random_worker_4</name><pose>7 -10.0 0 0 0 1.5708</pose></include>
-    <include><uri>model://random_worker</uri><name>random_worker_5</name><pose>-4.8 -4.2 0 0 0 0</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_4</name><pose>7.0 -10.0 0 0 0 1.5708</pose></include>
+    <include><uri>model://random_worker</uri><name>random_worker_5</name><pose>-4.65 -4.2 0 0 0 0</pose></include>
 
     <!-- A few distinct task objects. Each box has exactly one solid color and
          a semantic model name used by the task planner / VQA layer. -->
