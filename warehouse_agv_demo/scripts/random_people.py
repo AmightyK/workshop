@@ -35,7 +35,10 @@ RESET_TOPIC = "/warehouse/random_people/reset"
 NEW_MISSION_TOPIC = "/warehouse/random_people/new_mission"
 UPDATE_PERIOD = 1.0 / 30.0
 MAX_YAW_SPEED_RADPS = 2.4
-HUMAN_1_ACTIVATION_DISTANCE_M = 3.2
+# Give the scripted worker enough time to enter and clear the route before the
+# AGV reaches its immediate stop envelope. The FOV gate in update() still
+# applies, so increasing this range cannot trigger an off-camera crossing.
+HUMAN_1_ACTIVATION_DISTANCE_M = 5.0
 HUMAN_1_INITIAL_XY = (7.0, -10.0)
 # Preserve the latest GitHub spawn at (7, -10), but keep the scripted person
 # on the short camera-visible crossing.  Each mission traverses this segment
@@ -263,7 +266,12 @@ def hold_return_until_agv_clears(
 
 class RandomPeopleController:
     def __init__(
-        self, seed: int | None, speed_scale: float, worker4_mode: str
+        self,
+        seed: int | None,
+        speed_scale: float,
+        worker4_mode: str,
+        *,
+        reset_on_start: bool = True,
     ) -> None:
         self.node = Node()
         self.generator = random.Random(seed)
@@ -279,6 +287,7 @@ class RandomPeopleController:
         self.feedback_bootstrap_deadline = -math.inf
         self.mission_generation = 0
         self.last_mission_id: int | None = None
+        self.reset_on_start = bool(reset_on_start)
         self.walkers = [
             Walker(
                 "random_worker_1",
@@ -460,8 +469,30 @@ class RandomPeopleController:
         if not self.accept_pose_updates:
             return
         walker = self.walkers_by_name[name]
-        walker.x = float(pose.position.x)
-        walker.y = float(pose.position.y)
+        next_x = float(pose.position.x)
+        next_y = float(pose.position.y)
+        initial_x, initial_y, _ = self.initial_poses[name]
+        # Gazebo may be restarted while this controller survives. Detect the
+        # resulting endpoint -> spawn teleport and clear the scripted trigger;
+        # otherwise worker 4 inherits activated=True from the previous world
+        # and crosses immediately before any new mission exists.
+        reset_to_spawn = (
+            walker.rearm_each_mission
+            and math.hypot(next_x - initial_x, next_y - initial_y) <= 0.30
+            and math.hypot(next_x - walker.x, next_y - walker.y) >= 1.00
+        )
+        if reset_to_spawn:
+            walker.activated = False
+            walker.completed_mission_generation = self.mission_generation
+            walker.target = walker.waypoints[-1]
+            walker.target_origin = (next_x, next_y)
+            walker.wait_until = 0.0
+            print(
+                f"{name} world reset detected; crossing disarmed until next mission",
+                flush=True,
+            )
+        walker.x = next_x
+        walker.y = next_y
         walker.last_pose_update = time.monotonic()
         walker.pose_update_count += 1
         orientation = pose.orientation
@@ -700,6 +731,12 @@ class RandomPeopleController:
         # Initial poses come from the world file. Never choose or set a random
         # startup pose, which was the old one-frame teleport.
         self.stop_people()
+        if self.reset_on_start:
+            self.reset_people()
+            print(
+                "Random people reset on launcher start; scripted crossing disarmed",
+                flush=True,
+            )
         # PosePublisher may publish only on state change. Give each worker one
         # bounded open-loop second from its known world spawn so moving models
         # generate their first feedback; after that the stale-pose fail-safe
@@ -749,14 +786,27 @@ def main() -> None:
         default="proximity",
         help=(
             "intentional proximity scenario (default), where worker 4 waits "
-            "until the AGV is within 3.2 m; continuous is available for "
+            f"until the AGV is within {HUMAN_1_ACTIVATION_DISTANCE_M:.1f} m "
+            "and sees it in the forward camera; continuous is available for "
             "motion-only diagnostics"
+        ),
+    )
+    parser.add_argument(
+        "--reset-on-start",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "reset all worker poses/routes whenever this launcher starts "
+            "(default: enabled)"
         ),
     )
     args = parser.parse_args()
     controller_lock = acquire_controller_lock()
     controller = RandomPeopleController(
-        args.seed, max(0.1, args.speed_scale), args.worker_4_mode
+        args.seed,
+        max(0.1, args.speed_scale),
+        args.worker_4_mode,
+        reset_on_start=args.reset_on_start,
     )
 
     def stop(*_: object) -> None:

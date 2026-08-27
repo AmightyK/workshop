@@ -136,10 +136,30 @@ start_component() {
 
 # Random LiDAR-visible workers are a separate process so the world remains
 # simple and the behavior can be paused while rebuilding the static map.
+# If Gazebo exited without run_demo's cleanup, the old controller can survive
+# and carry an activated crossing into the next world. There is no live world
+# at this point (guarded above), so retiring that stale owner is safe.
+PEOPLE_LOCK="$LOG_DIR/random_people_${PARTITION_KEY}.lock"
+if [[ -r "$PEOPLE_LOCK" ]]; then
+  read -r STALE_PEOPLE_PID < "$PEOPLE_LOCK" || STALE_PEOPLE_PID=""
+  if [[ "$STALE_PEOPLE_PID" =~ ^[0-9]+$ ]] \
+      && kill -0 "$STALE_PEOPLE_PID" 2>/dev/null; then
+    kill -TERM "$STALE_PEOPLE_PID" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$STALE_PEOPLE_PID" 2>/dev/null || break
+      sleep 0.10
+    done
+    if kill -0 "$STALE_PEOPLE_PID" 2>/dev/null; then
+      kill -KILL "$STALE_PEOPLE_PID" 2>/dev/null || true
+    fi
+    printf '%s\n' "  ${YELLOW}●${RESET} Retired stale worker controller pid $STALE_PEOPLE_PID"
+  fi
+fi
 start_component random_people "" \
   python3 -u "$DEMO_DIR/scripts/random_people.py" \
   --speed-scale "$PEOPLE_SPEED_SCALE" \
-  --worker-4-mode "$WORKER_4_MODE"
+  --worker-4-mode "$WORKER_4_MODE" \
+  --reset-on-start
 
 # run_demo is now the integrated entry point. The bridge starts here so the
 # camera reaches V-JEPA immediately; pick_box only starts a fallback component
@@ -152,6 +172,38 @@ fi
 # this receiver in the same lifecycle as the Gazebo demo so every dependency
 # is already warming while the operator waits for the desktop windows.
 if is_enabled "$UDP_COMMAND_BRIDGE_ENABLED"; then
+  BRIDGE_LOCK="$LOG_DIR/udp_command_bridge.lock"
+  BRIDGE_PORT="${UDP_COMMAND_BIND##*:}"
+  BRIDGE_OWNER_PIDS=()
+  if [[ -r "$BRIDGE_LOCK" ]]; then
+    read -r BRIDGE_LOCK_PID < "$BRIDGE_LOCK" || BRIDGE_LOCK_PID=""
+    [[ "$BRIDGE_LOCK_PID" =~ ^[0-9]+$ ]] \
+      && BRIDGE_OWNER_PIDS+=("$BRIDGE_LOCK_PID")
+  fi
+  # Backward compatibility for a bridge started before the lock recorded its
+  # PID. Validate the process command below before stopping any socket owner.
+  while read -r BRIDGE_SOCKET_PID; do
+    [[ "$BRIDGE_SOCKET_PID" =~ ^[0-9]+$ ]] \
+      && BRIDGE_OWNER_PIDS+=("$BRIDGE_SOCKET_PID")
+  done < <(fuser -n udp "$BRIDGE_PORT" 2>/dev/null | tr ' ' '\n' || true)
+  for STALE_BRIDGE_PID in "${BRIDGE_OWNER_PIDS[@]}"; do
+    [[ "$STALE_BRIDGE_PID" == "$$" ]] && continue
+    kill -0 "$STALE_BRIDGE_PID" 2>/dev/null || continue
+    BRIDGE_CMDLINE="$(tr '\0' ' ' <"/proc/$STALE_BRIDGE_PID/cmdline" 2>/dev/null || true)"
+    if [[ "$BRIDGE_CMDLINE" != *"src.robot_link.bridge"* \
+          && "$BRIDGE_CMDLINE" != *"scripts/udp_command_bridge.py"* ]]; then
+      continue
+    fi
+    kill -INT "$STALE_BRIDGE_PID" 2>/dev/null || true
+    for _ in $(seq 1 25); do
+      kill -0 "$STALE_BRIDGE_PID" 2>/dev/null || break
+      sleep 0.10
+    done
+    if kill -0 "$STALE_BRIDGE_PID" 2>/dev/null; then
+      kill -KILL "$STALE_BRIDGE_PID" 2>/dev/null || true
+    fi
+    printf '%s\n' "  ${YELLOW}●${RESET} Replaced stale UDP bridge pid $STALE_BRIDGE_PID"
+  done
   start_component udp_command_bridge "" \
     "$DEMO_DIR/run_udp_command_bridge.sh" \
     --bind "$UDP_COMMAND_BIND"

@@ -37,6 +37,68 @@ def test_retry_keeps_checkpoint_that_is_still_ahead() -> None:
     assert pruned == pending
 
 
+def test_redirect_from_c_to_b_skips_dock_prefix() -> None:
+    pending = [
+        _pose(10.8, -10.0),
+        _pose(5.5, -10.0),
+        _pose(-1.45, -10.0),
+        _pose(-1.90, 0.8),
+    ]
+
+    pruned = prune_passed_checkpoints(pending, (-2.50, 3.8))
+
+    assert [(pose.pose.position.x, pose.pose.position.y) for pose in pruned] == [
+        (-1.90, 0.8)
+    ]
+
+
+def test_redirect_from_c_to_b_keeps_b_shelf_approach_after_staging() -> None:
+    pending = [
+        _pose(10.8, -10.0),
+        _pose(5.5, -10.0),
+        _pose(-1.45, -10.0),
+        _pose(-1.90, 0.8),
+        _pose(-5.04, 1.06),
+    ]
+
+    pruned = prune_passed_checkpoints(pending, (-2.50, 3.8))
+
+    assert [(pose.pose.position.x, pose.pose.position.y) for pose in pruned] == [
+        (-1.90, 0.8),
+        (-5.04, 1.06),
+    ]
+
+
+def test_redirect_from_c_to_a_skips_dock_prefix() -> None:
+    pending = [
+        _pose(10.8, -10.0),
+        _pose(5.5, -10.0),
+        _pose(-1.45, -10.0),
+        _pose(-1.90, -2.3),
+    ]
+
+    pruned = prune_passed_checkpoints(pending, (-2.50, 3.8))
+
+    assert [(pose.pose.position.x, pose.pose.position.y) for pose in pruned] == [
+        (-1.90, -2.3)
+    ]
+
+
+def test_redirect_from_a_to_c_keeps_only_forward_aisle_goal() -> None:
+    pending = [
+        _pose(10.8, -10.0),
+        _pose(5.5, -10.0),
+        _pose(-1.45, -10.0),
+        _pose(-2.50, 3.8),
+    ]
+
+    pruned = prune_passed_checkpoints(pending, (-1.90, -2.3))
+
+    assert [(pose.pose.position.x, pose.pose.position.y) for pose in pruned] == [
+        (-2.50, 3.8)
+    ]
+
+
 def test_retry_does_not_cut_route_when_robot_is_far_off_corridor() -> None:
     pending = [_pose(0.0, 0.0), _pose(2.0, 0.0), _pose(4.0, 0.0)]
 

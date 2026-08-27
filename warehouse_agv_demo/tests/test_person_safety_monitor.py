@@ -12,6 +12,7 @@ from scripts.person_safety_monitor import (
     crossing_worker_requires_stop,
     known_crossing_requires_stop,
     stale_worker_names,
+    tracked_worker_requires_stop,
     worker_relative_to_agv,
     worker_requires_stop,
 )
@@ -110,6 +111,29 @@ def test_worker_1_crossing_guard_protects_return_from_c() -> None:
     )
 
 
+def test_known_crossing_fallback_releases_after_track_is_usable() -> None:
+    # Regression: this pose is inside the wide crossing fallback but outside
+    # the immediate physical envelope. With a healthy track the predictive
+    # planner must be allowed to accumulate its 1 s clearance confirmation.
+    agv = Pose2D(5.95, -10.834, 0.0)
+    worker = Pose2D(7.0, -10.0)
+
+    assert tracked_worker_requires_stop(
+        "random_worker_4",
+        agv,
+        worker,
+        stopping=True,
+        track_sample_count=1,
+    )
+    assert not tracked_worker_requires_stop(
+        "random_worker_4",
+        agv,
+        worker,
+        stopping=True,
+        track_sample_count=2,
+    )
+
+
 def test_stale_worker_pose_forces_fail_safe_contract() -> None:
     timestamps = {"random_worker_1": 9.8, "random_worker_2": 8.0}
 
@@ -119,7 +143,7 @@ def test_stale_worker_pose_forces_fail_safe_contract() -> None:
 
 
 def test_scripted_worker_contracts_are_state_driven_and_continuous() -> None:
-    assert HUMAN_1_ACTIVATION_DISTANCE_M == 3.2
+    assert HUMAN_1_ACTIVATION_DISTANCE_M == 5.0
     assert HUMAN_1_INITIAL_XY == (7.0, -10.0)
     assert HUMAN_1_WAYPOINTS == ((7.0, -10.8), (7.0, -7.0))
     assert HUMAN_1_REARM_EACH_MISSION is True
@@ -329,7 +353,9 @@ def test_worker_1_crossing_is_scripted_once_in_each_mission() -> None:
     )
     controller = object.__new__(RandomPeopleController)
     controller.walkers = [walker]
-    controller.agv_xy = (10.0, -10.0)
+    # 4.8 m validates the camera-gated 5.0 m early trigger. The former 3.2 m
+    # trigger would leave this worker parked until the AGV was already close.
+    controller.agv_xy = (11.8, -10.0)
     controller.agv_yaw = 0.0
     controller.feedback_bootstrap_deadline = 0.0
     controller.mission_generation = 0
@@ -373,6 +399,30 @@ def test_worker_1_trigger_requires_real_forward_camera_visibility() -> None:
 
     assert worker_in_forward_camera_view((10.0, -10.0), math.pi, worker)
     assert not worker_in_forward_camera_view((10.0, -10.0), 0.0, worker)
+
+
+def test_world_reset_to_spawn_disarms_an_active_scripted_crossing() -> None:
+    controller = RandomPeopleController(
+        seed=1,
+        speed_scale=1.0,
+        worker4_mode="proximity",
+        reset_on_start=False,
+    )
+    worker = controller.walkers_by_name["random_worker_4"]
+    worker.x, worker.y = HUMAN_1_WAYPOINTS[-1]
+    worker.activated = True
+    controller.mission_generation = 3
+
+    pose = SimpleNamespace(
+        name="random_worker_4",
+        position=SimpleNamespace(x=HUMAN_1_INITIAL_XY[0], y=HUMAN_1_INITIAL_XY[1]),
+        orientation=SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+    )
+    controller.on_worker_pose("random_worker_4", pose)
+
+    assert not worker.activated
+    assert worker.completed_mission_generation == 3
+    assert worker.target == HUMAN_1_WAYPOINTS[-1]
 
 
 def test_worker_1_starts_at_the_latest_github_position() -> None:

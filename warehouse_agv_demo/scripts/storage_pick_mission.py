@@ -33,7 +33,7 @@ from rclpy.qos import (
 from rclpy.signals import SignalHandlerOptions
 from rclpy.time import Time
 from std_msgs.msg import String
-from tf2_ros import Buffer, TransformListener
+from tf2_ros import Buffer, TransformException, TransformListener
 
 from latent_route import (
     LatentRoutePlanner,
@@ -143,7 +143,13 @@ def normalize_color(value: str) -> str:
 def prune_passed_checkpoints(
     poses: list[PoseStamped], current_xy: tuple[float, float] | None
 ) -> list[PoseStamped]:
-    """Never send a checkpoint behind the robot again after an action retry."""
+    """Drop route prefixes already behind the current robot pose.
+
+    This is used both before the first action and after retries. A robot may
+    start beyond a segment endpoint when it is redirected between cabinets
+    (for example C -> B on the same aisle), so distance is measured to the
+    forward ray of each segment rather than only its clamped endpoints.
+    """
     pending = list(poses)
     if current_xy is None or len(pending) <= 1:
         return pending
@@ -165,11 +171,21 @@ def prune_passed_checkpoints(
         offset_x = current_x - float(first.x)
         offset_y = current_y - float(first.y)
         projection = (offset_x * dx + offset_y * dy) / length_sq
-        closest_projection = min(1.0, max(0.0, projection))
-        closest_x = float(first.x) + closest_projection * dx
-        closest_y = float(first.y) + closest_projection * dy
+        # A negative projection means this segment is still entirely ahead.
+        # Positive values above one are valid: C is beyond the B endpoint on
+        # the same aisle and must continue to B, not return to dock first.
+        if projection < 0.0:
+            continue
+        closest_x = float(first.x) + projection * dx
+        closest_y = float(first.y) + projection * dy
         cross_track = math.hypot(current_x - closest_x, current_y - closest_y)
-        if cross_track < best_cross_track:
+        if (
+            cross_track < best_cross_track - 1.0e-6
+            or (
+                abs(cross_track - best_cross_track) <= 0.05
+                and index > best_segment
+            )
+        ):
             best_cross_track = cross_track
             best_segment = index
     if best_segment < 0 or best_cross_track > 1.0:
@@ -401,6 +417,17 @@ class CabinetRouteNavigator(Node):
         pose.pose.orientation.w = math.cos(yaw / 2.0)
         return pose
 
+    def current_map_xy(self) -> tuple[float, float] | None:
+        """Return the live map-frame robot position for route rebasing."""
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                "map", "base_link", Time()
+            )
+        except TransformException:
+            return None
+        translation = transform.transform.translation
+        return float(translation.x), float(translation.y)
+
     def feedback(self, message) -> None:
         now = time.monotonic()
         if (
@@ -545,7 +572,13 @@ class CabinetRouteNavigator(Node):
         self.shelf_state_details = shelf_state_details or {}
         self.shelf_state_published = False
         poses = [self.make_pose(list(pose[[0, 1, 3]])) for pose in values]
-        pending_poses = poses
+        current_xy = self.current_map_xy()
+        pending_poses = prune_passed_checkpoints(poses, current_xy)
+        if len(pending_poses) < len(poses):
+            print(
+                f"  {CYAN}↪ REBASE{RESET} pose hiện tại → giữ "
+                f"{len(pending_poses)}/{len(poses)} checkpoint phía trước"
+            )
         for attempt in range(1, retries + 2):
             self.wait_until_active(wait)
             self.replan_requested = False

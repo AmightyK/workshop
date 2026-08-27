@@ -145,6 +145,33 @@ def crossing_worker_requires_stop(
     )
 
 
+def tracked_worker_requires_stop(
+    person_id: str,
+    agv: Pose2D,
+    worker: Pose2D,
+    *,
+    stopping: bool = False,
+    track_sample_count: int,
+) -> bool:
+    """Apply the known-crossing guard only while trajectory data is sparse.
+
+    The wider known-crossing envelope is a startup fallback. Keeping it active
+    after the predictor has a usable trajectory can deadlock an AGV stopped at
+    the edge of that envelope: prediction reports a clear path, but the static
+    fallback resets the clearance timer forever. With two or more samples the
+    predictive planner owns corridor clearance, while the immediate physical
+    envelope remains an unconditional collision backstop.
+    """
+    if worker_requires_stop(agv, worker, stopping=stopping):
+        return True
+    if track_sample_count >= 2:
+        return False
+    crossing = KNOWN_WORKER_CROSSINGS.get(person_id)
+    return crossing is not None and known_crossing_requires_stop(
+        agv, worker, crossing, stopping=stopping
+    )
+
+
 def load_planner_config(path: Path = CONFIG_PATH) -> tuple[PlannerConfig, dict[str, str]]:
     document = yaml.safe_load(path.read_text(encoding="utf-8"))
     values = document.get("behavior_planner", {})
@@ -284,6 +311,10 @@ class PersonSafetyMonitor(Node):
             for name, track in self.worker_tracks.items():
                 if not track.samples or now - self.worker_timestamps[name] > POSE_TIMEOUT_S:
                     continue
+                # Hysteresis belongs to this person, not to the global stop
+                # output. A WAIT caused by one worker must not enlarge every
+                # other worker's geometric envelope.
+                person_was_stopping = name in self.planner.wait_started
                 report = self.planner.evaluate(
                     person_id=name,
                     scenario=self.scenarios.get(name, "general_worker"),
@@ -297,11 +328,12 @@ class PersonSafetyMonitor(Node):
                     ego.yaw,
                     (track.latest_pose.x, track.latest_pose.y),
                 )
-                geometric_stop = crossing_worker_requires_stop(
+                geometric_stop = tracked_worker_requires_stop(
                     name,
                     ego,
                     track.latest_pose,
-                    stopping=self.stopping,
+                    stopping=person_was_stopping,
+                    track_sample_count=len(track.samples),
                 )
                 # Both scripted encounters must be visually explainable.
                 # Suppress predictive / known-crossing WAIT while the worker
@@ -309,7 +341,7 @@ class PersonSafetyMonitor(Node):
                 # remains authoritative as the final collision backstop.
                 if name in CAMERA_VISIBLE_SCRIPTED_WORKERS and not camera_visible:
                     immediate_stop = worker_requires_stop(
-                        ego, track.latest_pose, stopping=self.stopping
+                        ego, track.latest_pose, stopping=person_was_stopping
                     )
                     geometric_stop = immediate_stop
                     if not immediate_stop and report.decision is not Decision.PASS:
@@ -336,7 +368,11 @@ class PersonSafetyMonitor(Node):
                 if geometric_stop:
                     wait_started = self.planner.wait_started.setdefault(name, now)
                     self.planner.clear_started.pop(name, None)
-                if geometric_stop and report.decision is Decision.PASS:
+                if geometric_stop and (
+                    report.decision is Decision.PASS
+                    or report.collision_probability
+                    < self.planner.config.collision_probability_threshold
+                ):
                     report = replace(
                         report,
                         decision=Decision.WAIT,
