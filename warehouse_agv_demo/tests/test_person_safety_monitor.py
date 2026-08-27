@@ -145,7 +145,7 @@ def test_stale_worker_pose_forces_fail_safe_contract() -> None:
 def test_scripted_worker_contracts_are_state_driven_and_continuous() -> None:
     assert HUMAN_1_ACTIVATION_DISTANCE_M == 5.0
     assert HUMAN_1_INITIAL_XY == (7.0, -10.0)
-    assert HUMAN_1_WAYPOINTS == ((7.0, -10.8), (7.0, -7.0))
+    assert HUMAN_1_WAYPOINTS == ((7.0, -10.8), (7.0, -8.0))
     assert HUMAN_1_REARM_EACH_MISSION is True
     assert HUMAN_1_CONTINUOUS is True
     assert HUMAN_2_WAYPOINTS == ((-4.65, -4.2), (5.2, -4.2))
@@ -325,7 +325,7 @@ def test_worker_1_reuses_the_same_segment_for_the_safe_return_trip() -> None:
         HUMAN_1_WAYPOINTS,
         speed=0.5,
         x=7.0,
-        y=-7.0,
+        y=-8.0,
         target=HUMAN_1_WAYPOINTS[1],
         target_origin=HUMAN_1_WAYPOINTS[0],
     )
@@ -333,7 +333,7 @@ def test_worker_1_reuses_the_same_segment_for_the_safe_return_trip() -> None:
     walker.choose_target(random.Random(1))
 
     assert walker.target == HUMAN_1_WAYPOINTS[0]
-    assert walker.target_origin == (7.0, -7.0)
+    assert walker.target_origin == (7.0, -8.0)
 
 
 def test_worker_1_crossing_is_scripted_once_in_each_mission() -> None:

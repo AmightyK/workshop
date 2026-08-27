@@ -45,7 +45,10 @@ HUMAN_1_INITIAL_XY = (7.0, -10.0)
 # once and parks just beyond the AGV lane; the next mission reverses direction.
 # The old north endpoint at y=-2 made one trigger send the person through most
 # of the warehouse, which looked like a flying/runaway worker.
-HUMAN_1_WAYPOINTS = ((7.0, -10.8), (7.0, -7.0))
+# Stop before the shelf collision boundary near y=-7.5. The former -7.0
+# target made the worker wedge against the rack after crossing, leaving the
+# controller publishing rotation forever even though the encounter was clear.
+HUMAN_1_WAYPOINTS = ((7.0, -10.8), (7.0, -8.0))
 HUMAN_1_REARM_EACH_MISSION = True
 HUMAN_1_CONTINUOUS = True
 # The old -4.80 endpoint can settle against collision geometry at startup even
